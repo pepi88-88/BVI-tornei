@@ -10,7 +10,7 @@
 =========================== */
 :root{
   /* Colori Mattabel */
-  --brand-orange: rgb(240,125,0); /* #F07D00 */
+  --brand-orange: rgb(255,204,0); /* giallo */
   --brand-navy:   rgb(5,43,88);   /* #052B58 */
 
   /* LARGHEZZA CONTENUTI (regolabile) */
