@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 
-const ORANGE = 'rgb(240,125,0)'
+const YELLOW = 'rgb(255, 204, 0)'
 
 function NavBtn({ href, label }:{ href:string; label:string }) {
   const pathname = usePathname()
@@ -20,7 +20,7 @@ function NavBtn({ href, label }:{ href:string; label:string }) {
         'bg-[--brand-navy] border border-neutral-700',
         'text-[15px] font-medium hover:border-neutral-500 transition-colors',
       ].join(' ')}
-      style={active ? { borderColor: ORANGE } : undefined}
+      style={active ? { borderColor: YELLOW } : undefined}
     >
       <span className="truncate">{label}</span>
     </Link>
