@@ -1,0 +1,121 @@
+/* ===========================
+   Tailwind base
+=========================== */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================
+   Brand & layout variables
+=========================== */
+:root{
+  /* Colori Mattabel */
+  --brand-orange: rgb(240,125,0); /* #F07D00 */
+  --brand-navy:   rgb(5,43,88);   /* #052B58 */
+
+  /* LARGHEZZA CONTENUTI (regolabile) */
+  --admin-container: 1750px;      /* ← prova 1440 / 1600 / 100% */
+
+  /* HEADER NAV (regolabili a mano) */
+  --nav-pill-minw:  200px;        /* larghezza minima bottone */
+  --nav-pill-h:     44px;         /* altezza bottone */
+  --nav-gap:        12px;         /* distanza fra bottoni */
+  --nav-font:       15px;         /* dimensione testo bottoni */
+}
+
+
+/* ===========================
+   Container centrale
+=========================== */
+.container-admin{
+  max-width: var(--admin-container);
+  width: 100%;
+  margin-left: auto;   /* 👈 centra orizzontalmente */
+  margin-right: auto;  /* 👈 centra orizzontalmente */
+  padding-left: 1rem;  /* 👈 un po’ di respiro ai lati */
+  padding-right: 1rem; /* 👈 un po’ di respiro ai lati */
+}
+
+
+/* ===========================
+   Body (tema scuro)
+=========================== */
+html,body{
+  @apply bg-neutral-950 text-neutral-100;
+}
+
+/* Leggera riga interna sotto l’header */
+.header-shadow { box-shadow: 0 2px 0 0 rgba(255,255,255,0.04) inset; }
+
+/* Striscia brand sotto l’header (staccata e più spessa) */
+.brand-strip{
+  height: 6px;                 /* ↑ spessore underline globale */
+  margin-top: 12px;            /* ↑ distacco dai bottoni */
+  background: linear-gradient(90deg, var(--brand-navy), var(--brand-orange), var(--brand-navy));
+  opacity: .9;
+}
+
+/* ===========================
+   Pillole di navigazione (header)
+=========================== */
+.nav-pill{
+  @apply inline-flex items-center justify-center
+         rounded-md border transition-colors mt-2 mb-2;
+  min-width: var(--nav-pill-minw);
+  height: var(--nav-pill-h);
+  padding: 0 16px;
+  font-size: var(--nav-font);
+  font-weight: 600;
+  letter-spacing: .2px;
+
+  background: var(--brand-navy);
+  color: #fff;
+  border-color: rgb(64,64,64);
+}
+
+.nav-pill:hover{ border-color: rgb(115,115,115); }
+
+/* stato attivo: bordo + underline spessa arancione */
+.nav-pill.is-active{
+  border-color: var(--brand-orange) !important;
+  position: relative;
+}
+.nav-pill.is-active::after{
+  content: "";
+  position: absolute;
+  left: 10px; right: 10px;
+  bottom: -8px;               /* distanza dalla base del bottone */
+  height: 8px;                /* ← underline più spessa */
+  border-radius: 9999px;
+  background: var(--brand-orange);
+}
+
+
+/* ===========================
+   Preset UI (opzionali)
+=========================== */
+.card{
+  @apply bg-neutral-900/40 border border-neutral-800 rounded-xl;
+}
+.input{
+  @apply bg-neutral-900 border border-neutral-700 rounded-md px-3 py-2
+         outline-none focus:border-neutral-400 text-neutral-100;
+}
+.btn{
+  @apply inline-flex items-center justify-center gap-2
+         rounded-md px-3 py-2 border border-neutral-700
+         bg-neutral-900 text-neutral-100
+         hover:border-neutral-500 transition-colors;
+}
+.btn-xs{ @apply px-2 py-1 text-xs rounded; }
+.btn-ghost{ @apply bg-transparent border-transparent hover:border-neutral-700; }
+/* Metti in fondo al file */
+@media (max-width: 640px){
+  .mobile-wrap {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word !important;
+  }
+}
+
