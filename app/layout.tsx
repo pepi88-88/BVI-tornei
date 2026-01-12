@@ -2,7 +2,8 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import AppHeader from '../components/AppHeader'
 
-export const metadata: Metadata = { title: 'Mattabel Beach Volley — Admin' }
+export const metadata: Metadata = { title: 'Beach Volley Institute — Admin' }
+
 
 // ✅ niente blocchi allo zoom qui
 export const viewport: Viewport = {
