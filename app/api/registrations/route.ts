@@ -112,8 +112,6 @@ const dId = String((b as any)?.d?.existingId || '').trim() || null
     c_player_id: cId,
     d_player_id: dId,
   })
-  .select('id')
-  .single()
 
       .select('id')
       .single()
