@@ -13,19 +13,16 @@ export async function GET(req: NextRequest) {
       return new NextResponse('Missing tournament_id', { status: 400 })
     }
 
-    // 1) Registrations (ordinate come prima)
+    // 1) Registrations (ordinate come prima) + NUOVI CAMPI 3x3/4x4
     const { data: regs, error: regsErr } = await s
       .from('registrations')
-      .select('id, order_index, partner_status, paid_a, paid_b, team_id, created_at, tournament_id')
+      .select('id, order_index, partner_status, paid_a, paid_b, team_id, created_at, tournament_id, team_name, team_format, c_player_id, d_player_id')
       .eq('tournament_id', tournament_id)
       .order('order_index', { ascending: true })
       .order('created_at',  { ascending: true })
 
     if (regsErr) return NextResponse.json({ error: regsErr.message }, { status: 500 })
-
-    if (!regs?.length) {
-      return NextResponse.json({ items: [] })
-    }
+    if (!regs?.length) return NextResponse.json({ items: [] })
 
     // 2) Teams in bulk
     const teamIds = Array.from(new Set(regs.map(r => r.team_id).filter(Boolean)))
@@ -35,12 +32,16 @@ export async function GET(req: NextRequest) {
       .in('id', teamIds)
 
     if (teamsErr) return NextResponse.json({ error: teamsErr.message }, { status: 500 })
+
     const teamMap = new Map<string, { player_a: string|null; player_b: string|null }>()
     for (const t of (teams ?? [])) teamMap.set(t.id, { player_a: t.player_a, player_b: t.player_b })
 
-    // 3) Players in bulk (A + B)
+    // 3) Players in bulk (A + B + C + D)
     const playerIds = Array.from(new Set(
-      (teams ?? []).flatMap(t => [t.player_a, t.player_b]).filter(Boolean) as string[]
+      [
+        ...(teams ?? []).flatMap(t => [t.player_a, t.player_b]),
+        ...regs.flatMap(r => [r.c_player_id, r.d_player_id]),
+      ].filter(Boolean) as string[]
     ))
 
     const { data: players, error: playersErr } = await s
@@ -49,27 +50,49 @@ export async function GET(req: NextRequest) {
       .in('id', playerIds)
 
     if (playersErr) return NextResponse.json({ error: playersErr.message }, { status: 500 })
+
     const playerMap = new Map<string, { first_name?:string; last_name?:string; is_placeholder?:boolean }>()
     for (const p of (players ?? [])) playerMap.set(p.id, p)
+
+    // helper: "Cognome Nome"
+    const fullName = (pid?: string | null) => {
+      if (!pid) return ''
+      const p = playerMap.get(pid)
+      if (!p) return ''
+      return `${p.last_name ?? ''} ${p.first_name ?? ''}`.trim()
+    }
 
     // 4) Costruisci output
     const out: Array<{ id: string; label: string; paid: boolean }> = []
 
-    for (const r of regs) {
+    for (const r of regs as any[]) {
       const t = r.team_id ? teamMap.get(r.team_id) : undefined
 
-      const a = t?.player_a ? playerMap.get(t.player_a) : undefined
-      const b = t?.player_b ? playerMap.get(t.player_b) : undefined
+      // A/B vengono da teams (come prima)
+      const aName = fullName(t?.player_a ?? null)
+      const bName = fullName(t?.player_b ?? null)
 
-      const aLast = a?.last_name ?? ''
-      const aFirst = a?.first_name ?? ''
+      // C/D vengono da registrations (nuove colonne)
+      const cName = fullName(r.c_player_id ?? null)
+      const dName = fullName(r.d_player_id ?? null)
 
-      let bLabel = ''
-      if (r.partner_status === 'looking') bLabel = 'IN CERCA'
-      else if (r.partner_status === 'cdc') bLabel = 'CDC'
-      else bLabel = `${b?.last_name ?? ''} ${b?.first_name ?? ''}`.trim()
+      let label = ''
 
-      const label = `${aLast} ${aFirst} — ${bLabel}`.trim()
+      // ✅ Se ho team_name → modalità squadra (3x3/4x4)
+      if (r.team_name && String(r.team_name).trim().length) {
+        const team = String(r.team_name).trim()
+        const names = [aName, bName, cName, dName].filter(Boolean)
+        // label compatta e leggibile in lista
+        label = names.length ? `${team} — ${names.join(', ')}` : team
+      } else {
+        // ✅ Fallback vecchio 2x2 con partner_status
+        let bLabel = ''
+        if (r.partner_status === 'looking') bLabel = 'IN CERCA'
+        else if (r.partner_status === 'cdc') bLabel = 'CDC'
+        else bLabel = bName
+
+        label = `${aName} — ${bLabel}`.trim()
+      }
 
       out.push({
         id: r.id,
@@ -83,12 +106,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 })
   }
 }
-
-/* Se in futuro servono metodi scriventi, tengono il gate admin:
-
-export async function POST(req: NextRequest) {
-  if (!requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  // ...logica scrivente...
-  return NextResponse.json({ ok: true })
-}
-*/
