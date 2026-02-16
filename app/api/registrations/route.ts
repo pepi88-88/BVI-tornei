@@ -3,8 +3,15 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseServer'
 
 type Body =
-  | { tournament_id: string; a: { id: string }; b: { existingId: string } }
-  | { tournament_id: string; a: { id: string }; b: { mode: 'looking' | 'cdc' } }
+  | {
+      tournament_id: string
+      team_name?: string
+      team_format?: number
+      a: { id: string }
+      b: { existingId: string } | { mode: 'looking' | 'cdc' }
+      c?: { existingId: string }
+      d?: { existingId: string } | null
+    }
 
 // ...imports invariati...
 
@@ -19,6 +26,12 @@ export async function POST(req: Request) {
     const b = (await req.json()) as Body
     const tournament_id = String((b as any)?.tournament_id || '').trim()
     const aId = String((b as any)?.a?.id || '').trim()
+    const team_name = String((b as any)?.team_name || '').trim() || null
+const team_format_raw = Number((b as any)?.team_format)
+const team_format = Number.isFinite(team_format_raw) ? team_format_raw : null
+const cId = String((b as any)?.c?.existingId || '').trim() || null
+const dId = String((b as any)?.d?.existingId || '').trim() || null
+
     if (!tournament_id || !aId) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 })
     }
@@ -82,17 +95,26 @@ export async function POST(req: Request) {
     }
 
     // --- crea registration (usa order_index, paid_a/b) ---
-    const { data: reg, error: eR } = await s
-      .from('registrations')
-      .insert({
-        team_id: createdTeamId,
-        tournament_id,
-        partner_status,           // 'paired' | 'looking' | 'cdc' (mai null)
-        order_index: 1_000_000,   // inizialmente in fondo
-        paid_a: false,
-        paid_b: false,
-        label,                    // se hai una colonna label e la usi in UI
-      })
+   const { data: reg, error: eR } = await s
+  .from('registrations')
+  .insert({
+    team_id: createdTeamId,
+    tournament_id,
+    partner_status,           // 'paired' | 'looking' | 'cdc' (mai null)
+    order_index: 1_000_000,   // inizialmente in fondo
+    paid_a: false,
+    paid_b: false,
+    label,                    // se hai una colonna label e la usi in UI
+
+    // ✅ nuovi campi 3x3 / 4x4 (se non arrivano restano null)
+    team_name,
+    team_format,
+    c_player_id: cId,
+    d_player_id: dId,
+  })
+  .select('id')
+  .single()
+
       .select('id')
       .single()
     if (eR) throw eR
