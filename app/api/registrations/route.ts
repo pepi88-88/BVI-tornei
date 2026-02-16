@@ -36,25 +36,58 @@ const dId = String((b as any)?.d?.existingId || '').trim() || null
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 })
     }
 
-    // --- blocco doppi iscritti (come ce l’hai ora, teniamolo) ---
-    {
-      const orParts = [`player_a.eq.${aId}`, `player_b.eq.${aId}`]
-      const isBPlayer =
-        'existingId' in (b as any).b && String((b as any).b.existingId || '').trim()
-      if (isBPlayer) {
-        const bId = String((b as any).b.existingId).trim()
-        orParts.push(`player_a.eq.${bId}`, `player_b.eq.${bId}`)
-      }
-      const { data: dup, error: dupErr } = await s
-        .from('registrations')
-        .select('id, teams!inner(player_a, player_b)')
-        .eq('tournament_id', tournament_id)
-        .or(orParts.join(','), { foreignTable: 'teams' })
-      if (dupErr) return NextResponse.json({ error: dupErr.message }, { status: 500 })
-      if (dup?.length) {
-        return NextResponse.json({ error: 'Giocatore già iscritto a questa tappa' }, { status: 409 })
-      }
+    // --- blocco doppi iscritti (NO join con teams: più stabile) ---
+{
+  // elenco giocatori da controllare (A sempre, poi B/C/D se presenti)
+  const idsToCheck = [aId]
+  const isBPlayer =
+    'existingId' in (b as any).b && String((b as any).b.existingId || '').trim()
+
+  if (isBPlayer) {
+    idsToCheck.push(String((b as any).b.existingId).trim())
+  }
+  if (cId) idsToCheck.push(cId)
+  if (dId) idsToCheck.push(dId)
+
+  const uniqueIds = Array.from(new Set(idsToCheck)).filter(Boolean)
+  const idsCsv = uniqueIds.join(',')
+
+  // 1) Trovo i team che contengono uno di questi giocatori (A o B del team)
+  let teamIds: string[] = []
+  if (uniqueIds.length) {
+    const { data: tdup, error: tdupErr } = await s
+      .from('teams')
+      .select('id')
+      .or(`player_a.in.(${idsCsv}),player_b.in.(${idsCsv})`)
+
+    if (tdupErr) return NextResponse.json({ error: tdupErr.message }, { status: 500 })
+    teamIds = (tdup ?? []).map(x => x.id)
+  }
+
+  // 2) Controllo registrations della tappa:
+  //    - team_id già presente
+  //    - oppure c_player_id / d_player_id già presente (per 3x3/4x4)
+  const orParts: string[] = []
+  if (teamIds.length) orParts.push(`team_id.in.(${teamIds.join(',')})`)
+  if (uniqueIds.length) {
+    orParts.push(`c_player_id.in.(${idsCsv})`)
+    orParts.push(`d_player_id.in.(${idsCsv})`)
+  }
+
+  if (orParts.length) {
+    const { data: dup, error: dupErr } = await s
+      .from('registrations')
+      .select('id')
+      .eq('tournament_id', tournament_id)
+      .or(orParts.join(','))
+
+    if (dupErr) return NextResponse.json({ error: dupErr.message }, { status: 500 })
+    if (dup?.length) {
+      return NextResponse.json({ error: 'Giocatore già iscritto a questa tappa' }, { status: 409 })
     }
+  }
+}
+
 
     // --- leggo nomi A/B per etichetta ---
     const { data: pa, error: eA } = await s
