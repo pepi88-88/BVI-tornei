@@ -350,9 +350,10 @@ function onChangeFormat(next: 2 | 3 | 4) {
     </div>
   </div>
 )}
+      </div>
 
 
-      {/* lista iscritti */}
+           {/* lista iscritti */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-lg">Iscritti</h3>
@@ -360,6 +361,7 @@ function onChangeFormat(next: 2 | 3 | 4) {
         </div>
         <RegistrationList items={items} onReorder={onReorder} onDelete={deleteTeam} />
       </div>
+
     </div>
   )
 }
