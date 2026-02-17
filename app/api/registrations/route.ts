@@ -29,8 +29,21 @@ export async function POST(req: Request) {
     const team_name = String((b as any)?.team_name || '').trim() || null
 const team_format_raw = Number((b as any)?.team_format)
 const team_format = Number.isFinite(team_format_raw) ? team_format_raw : null
-const cId = String((b as any)?.c?.existingId || '').trim() || null
-const dId = String((b as any)?.d?.existingId || '').trim() || null
+const cObj = (b as any)?.c
+const dObj = (b as any)?.d
+
+const cId = String(cObj?.existingId || '').trim() || null
+const dId = String(dObj?.existingId || '').trim() || null
+
+const c_status: 'paired' | 'looking' | 'cdc' | null =
+  cObj?.mode === 'looking' ? 'looking' :
+  cObj?.mode === 'cdc' ? 'cdc' :
+  cId ? 'paired' : null
+
+const d_status: 'paired' | 'looking' | 'cdc' | null =
+  dObj?.mode === 'looking' ? 'looking' :
+  dObj?.mode === 'cdc' ? 'cdc' :
+  dId ? 'paired' : null
 
     if (!tournament_id || !aId) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 })
@@ -144,6 +157,9 @@ const dId = String((b as any)?.d?.existingId || '').trim() || null
     team_format,
     c_player_id: cId,
     d_player_id: dId,
+    // ✅ nuovi status
+    c_status,
+    d_status,
   })
 
       .select('id')
