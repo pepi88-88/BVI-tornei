@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     // 1) Registrations (ordinate come prima) + NUOVI CAMPI 3x3/4x4
     const { data: regs, error: regsErr } = await s
       .from('registrations')
-      .select('id, order_index, partner_status, paid_a, paid_b, team_id, created_at, tournament_id, team_name, team_format, c_player_id, d_player_id')
+      .select('id, order_index, partner_status, paid_a, paid_b, team_id, created_at, tournament_id, team_name, team_format, c_player_id, d_player_id, c_status, d_status')
       .eq('tournament_id', tournament_id)
       .order('order_index', { ascending: true })
       .order('created_at',  { ascending: true })
@@ -73,8 +73,14 @@ export async function GET(req: NextRequest) {
       const bName = fullName(t?.player_b ?? null)
 
       // C/D vengono da registrations (nuove colonne)
-      const cName = fullName(r.c_player_id ?? null)
-      const dName = fullName(r.d_player_id ?? null)
+   const cNameRaw = fullName(r.c_player_id ?? null)
+const dNameRaw = fullName(r.d_player_id ?? null)
+
+const cName =
+  cNameRaw || (r.c_status === 'looking' ? 'IN CERCA' : r.c_status === 'cdc' ? 'CDC' : '')
+
+const dName =
+  dNameRaw || (r.d_status === 'looking' ? 'IN CERCA' : r.d_status === 'cdc' ? 'CDC' : '')
 
       let label = ''
 
