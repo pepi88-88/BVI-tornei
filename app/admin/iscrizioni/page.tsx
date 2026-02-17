@@ -142,7 +142,7 @@ const [playerD, setPlayerD] = useState<PickerPlayer | null>(null)
 
 // solo per 2x2 (come prima)
 const [bMode, setBMode] = useState<'player'|'looking'|'cdc'>('player')
-  const [cMode, setCMode] = useState<'player'|'looking'|'cdc'>('player')
+const [cMode, setCMode] = useState<'player'|'looking'|'cdc'>('player')
 const [dMode, setDMode] = useState<'player'|'looking'|'cdc'>('player')
 
 // reset totale quando cambi formato (evita residui)
@@ -154,7 +154,7 @@ function onChangeFormat(next: 2 | 3 | 4) {
   setPlayerC(null)
   setPlayerD(null)
   setBMode('player')
-    setCMode('player')
+  setCMode('player')
   setDMode('player')
 
 }
@@ -399,7 +399,7 @@ return
     </div>
   </div>
 )}
-
+</div> 
            {/* lista iscritti */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
