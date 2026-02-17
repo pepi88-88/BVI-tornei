@@ -284,9 +284,7 @@ paid_d: side === 'D' ? value : r.paid_d,
             Nessun risultato per la ricerca corrente.
           </div>
         ) : (
-          // 📦 griglia a DUE COLONNE (1 colonna su mobile)
-        {/* 📦 griglia a DUE COLONNE (1 colonna su mobile) */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
   {visibleItems.map((r: any, i: number) => {
     const isTeam = !!r.team_name && Number(r.team_format) >= 3
     const is4 = Number(r.team_format) === 4
