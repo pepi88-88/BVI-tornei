@@ -298,24 +298,45 @@ paid_d: side === 'D' ? value : r.paid_d,
     key={r.id}
     className={[
       'py-2 px-3 rounded-lg border border-neutral-800',
-      'grid items-center gap-2',
-      'grid-cols-[72px_1fr_72px]', // colonna sx / centro / dx
+      'grid gap-x-2 gap-y-2',
+      'grid-cols-[72px_1fr_72px]',  // sx / centro / dx
       fullyPaid ? 'opacity-70' : '',
     ].join(' ')}
   >
-    {/* SINISTRA: A + C */}
-    <div className="flex flex-col gap-2">
-      <label className="flex items-center gap-2 text-xs sm:text-sm">
-        <input
-          type="checkbox"
-          checked={!!r.paid_a}
-          onChange={e => togglePaid(r.id, 'A', e.target.checked)}
-        />
-        <span>A</span>
-      </label>
+    {/* TEAM NAME (span 3) */}
+    {isTeam && (
+      <div className="col-span-3 text-center font-semibold text-blue-400 leading-tight">
+        {r.team_name}
+      </div>
+    )}
 
-      {isTeam && (
-        <label className="flex items-center gap-2 text-xs sm:text-sm">
+    {/* ROW 1: A / (A-B names) / B */}
+    <label className="flex items-center gap-2 text-xs sm:text-sm justify-start">
+      <input
+        type="checkbox"
+        checked={!!r.paid_a}
+        onChange={e => togglePaid(r.id, 'A', e.target.checked)}
+      />
+      <span>A</span>
+    </label>
+
+    <div className="text-center text-sm text-white leading-tight">
+      {r.a} — {r.b}
+    </div>
+
+    <label className="flex items-center gap-2 text-xs sm:text-sm justify-end">
+      <span>B</span>
+      <input
+        type="checkbox"
+        checked={!!r.paid_b}
+        onChange={e => togglePaid(r.id, 'B', e.target.checked)}
+      />
+    </label>
+
+    {/* ROW 2: C / (C-D names) / D */}
+    {isTeam ? (
+      <>
+        <label className="flex items-center gap-2 text-xs sm:text-sm justify-start">
           <input
             type="checkbox"
             checked={!!r.paid_c}
@@ -323,54 +344,36 @@ paid_d: side === 'D' ? value : r.paid_d,
           />
           <span>C</span>
         </label>
-      )}
-    </div>
 
-    {/* CENTRO */}
-    <div className="text-center leading-tight">
-      {!isTeam ? (
-        <div className="whitespace-pre">{r.a} — {r.b}</div>
-      ) : (
-        <div className="space-y-1">
-          <div className="font-semibold text-blue-400">{r.team_name}</div>
-
-          <div className="text-sm text-white">
-            {r.a} — {r.b}
-          </div>
-
-          <div className="text-sm text-white/90">
-            {r.c || ''}
-            {is4 ? ` — ${r.d || ''}` : ''}
-          </div>
+        <div className="text-center text-sm text-white/90 leading-tight">
+          {r.c || '—'}
+          {is4 ? ` — ${r.d || '—'}` : ''}
         </div>
-      )}
-    </div>
 
-    {/* DESTRA: B + D */}
-    <div className="flex flex-col gap-2 items-end">
-      <label className="flex items-center gap-2 text-xs sm:text-sm">
-        <span>B</span>
-        <input
-          type="checkbox"
-          checked={!!r.paid_b}
-          onChange={e => togglePaid(r.id, 'B', e.target.checked)}
-        />
-      </label>
-
-      {isTeam && (
-        <label className="flex items-center gap-2 text-xs sm:text-sm">
-          <span>D</span>
-          <input
-            type="checkbox"
-            checked={!!r.paid_d}
-            disabled={!is4}
-            onChange={e => togglePaid(r.id, 'D', e.target.checked)}
-          />
-        </label>
-      )}
-    </div>
+        {is4 ? (
+          <label className="flex items-center gap-2 text-xs sm:text-sm justify-end">
+            <span>D</span>
+            <input
+              type="checkbox"
+              checked={!!r.paid_d}
+              onChange={e => togglePaid(r.id, 'D', e.target.checked)}
+            />
+          </label>
+        ) : (
+          <div /> // placeholder per 3x3
+        )}
+      </>
+    ) : (
+      // 2x2: seconda riga vuota
+      <>
+        <div />
+        <div />
+        <div />
+      </>
+    )}
   </div>
 )
+
 
   })}
 </div>
