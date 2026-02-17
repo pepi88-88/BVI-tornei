@@ -8,12 +8,17 @@ export async function PATCH(req: Request) {
     const id = String(b?.id || '').trim()
     if (!id) return NextResponse.json({ error: 'id mancante' }, { status: 400 })
 
-    const updates: any = {}
-    if (typeof b.paid_a === 'boolean') updates.paid_a = b.paid_a
-    if (typeof b.paid_b === 'boolean') updates.paid_b = b.paid_b
-    if (!('paid_a' in updates) && !('paid_b' in updates)) {
-      return NextResponse.json({ error: 'Nessun campo da aggiornare' }, { status: 400 })
-    }
+   const updates: any = {}
+
+if (typeof b.paid_a === 'boolean') updates.paid_a = b.paid_a
+if (typeof b.paid_b === 'boolean') updates.paid_b = b.paid_b
+if (typeof b.paid_c === 'boolean') updates.paid_c = b.paid_c
+if (typeof b.paid_d === 'boolean') updates.paid_d = b.paid_d
+
+if (Object.keys(updates).length === 0) {
+  return NextResponse.json({ error: 'Nessun campo da aggiornare' }, { status: 400 })
+}
+
 
     const s = supabaseAdmin()
     const { error } = await s.from('registrations').update(updates).eq('id', id)
