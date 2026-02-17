@@ -239,6 +239,8 @@ setTeamFormat(2)
 setPlayerA(null); setPlayerB(null); setPlayerC(null); setPlayerD(null)
 setBMode('player'); setCMode('player'); setDMode('player')
 mutate()
+return
+}  // ✅ CHIUDE createTeam()
 
 
   return (
@@ -344,18 +346,7 @@ mutate()
 </div>
 
 
-  {/* Tipo B solo per 2x2 */}
-  {teamFormat === 2 && (
-    <div className="md:col-span-3">
-      <div className="text-base text-neutral-400 mb-1">Tipo B</div>
-      <select className="input w-full" value={bMode} onChange={(e)=>setBMode(e.target.value as any)}>
-        <option value="player">Giocatore</option>
-        <option value="looking">In cerca compagno</option>
-        <option value="cdc">CDC</option>
-      </select>
-    </div>
-  )}
-</div>
+ 
 {/* Riga C (solo 3x3/4x4) */}
 {teamFormat !== 2 && (
   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
