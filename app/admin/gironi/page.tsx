@@ -8,7 +8,7 @@ const fetcher = (u: string) => fetch(u).then(r => r.json()).catch(() => null)
 
 type Tour = { id: string; name: string }
 type Tournament = { id: string; name: string; date?: string }
-type RegRow = { id: string; label: string }
+type RegRow = { id: string; label: string; label_short?: string }
 
 const LETTERS = 'ABCDEFGHIJKLMNOP'.split('') // fino a 16 gironi
 
@@ -24,12 +24,24 @@ const colorFor = (L: string) => GROUP_COLORS[L] ?? '#334155'
 // “Rossi Luca — Bianchi Marco” -> “Rossi L / Bianchi M” | CDC/IN CERCA
 const compact = (s: string) => {
   const parts = s.split('—').map(p => p.trim())
-  const lastOnly = (t?: string) => t ? (t.split(/\s+/)[0] ?? '') : ''
-  const a = lastOnly(parts[0])
-  const up = (parts[1] ?? '').toUpperCase()
-  const b = up.includes('CDC') ? 'CDC' : up.includes('CERCA') ? 'IN CERCA' : lastOnly(parts[1])
-  return b ? `${a} / ${b}` : a
+
+  const left = parts[0] ?? ''
+  const right = parts[1] ?? ''
+
+  // CDC / IN CERCA
+  const up = right.toUpperCase()
+  if (up.includes('CDC')) return `${left} / CDC`
+  if (up.includes('CERCA')) return `${left} / IN CERCA`
+
+  // Se è squadra (ha spazi multipli → tipo "I Bimbi di Robi")
+  // Mostra nome squadra completo + solo cognome capitano
+  const firstWordRight = right.split(/\s+/)[0] ?? ''
+
+  return firstWordRight
+    ? `${left} / ${firstWordRight}`
+    : left
 }
+
 
 // round-robin fino a 6 team
 function rr(n: number) {
@@ -110,7 +122,10 @@ useEffect(() => {
 // Se maxTeams > 0, prendi solo i primi maxTeams (esclude "in attesa")
 const regAll: RegRow[] = ((regsRes?.items ?? []) as any[])
   .filter((_, idx) => (maxTeams > 0 ? idx < maxTeams : true))
-  .map(x => ({ id: x.id, label: compact(x.label) }))
+  .map(x => ({
+    id: x.id,
+    label: (x.label_short ?? x.label ?? '').trim(),
+  }))
 
   const regMap = useMemo(() => Object.fromEntries(regAll.map(r => [r.id, r.label])), [regAll])
 
