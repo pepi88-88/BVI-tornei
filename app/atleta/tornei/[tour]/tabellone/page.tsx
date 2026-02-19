@@ -30,12 +30,45 @@ function normalizeBracket(b: any): BracketType {
   }
 }
 
-// nomi “brevi”: cognomi A / B
-function lastSurnames(label: string) {
-  const ln = (s: string) => s.trim().replace(/\s+[A-Z]\.?$/u, '').split(/\s+/)[0] || ''
-  const parts = String(label).replace(/—/g,'/').split('/').map(p=>p.trim()).filter(Boolean)
-  return parts.length>=2 ? `${ln(parts[0])} / ${ln(parts[1])}` : ln(String(label))
+// nomi “brevi”:
+// - se è team_name (nessun separatore) -> mostra NOME SQUADRA COMPLETO
+// - se è 2x2 ("Rossi Luca — Bianchi Marco" o "Rossi Luca / Bianchi Marco") -> "Rossi / Bianchi"
+// - gestisce cognomi composti tipo "Della Costa"
+function shortSurname(full: string) {
+  const s = String(full || '').trim().replace(/\s+[A-Z]\.?$/u, '')
+  const parts = s.split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return ''
+
+  const PARTICLES = new Set([
+    'DE','DEL','DEI','DEGLI','DELLA','DELL','DELL’','DELL\'','DELLE','DELLO',
+    'DI','D’','D\'','DA','DAL','DALLA','DALL\'','DALL’',
+    'LA','LE','LO',
+    'VAN','VON','VANDER','DER',
+  ])
+
+  let start = parts.length - 1
+  while (start - 1 >= 0) {
+    const prevU = parts[start - 1].toUpperCase()
+    if (PARTICLES.has(prevU)) start -= 1
+    else break
+  }
+
+  return parts.slice(start).join(' ')
 }
+
+function lastSurnames(label: string) {
+  const raw = String(label || '').trim()
+  if (!raw) return ''
+
+  // se è una squadra "team_name" (nessun separatore) => NON tagliare
+  const hasSep = raw.includes('—') || raw.includes('/')
+  if (!hasSep) return raw
+
+  const parts = raw.replace(/—/g, '/').split('/').map(p => p.trim()).filter(Boolean)
+  if (parts.length >= 2) return `${shortSurname(parts[0])} / ${shortSurname(parts[1])}`
+  return shortSurname(raw)
+}
+
 
 /* ===== stato pubblico gironi (esteso) ===== */
 type PublicPersist = {
@@ -743,4 +776,3 @@ export default function AthleteTabellonePage() {
     </div>
   )
 }
-
