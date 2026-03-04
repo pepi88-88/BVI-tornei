@@ -408,19 +408,22 @@ function commitTimeUncontrolled(
     )
   }
 
-  // ---- UI: partite (due colonne)
+   // ---- UI: partite (due colonne)
   function SchedulesRow({ pair }: { pair: string[] }) {
     return (
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))' }}>
         {pair.map(L => {
           const color = colorFor(L)
           const rows = scheduleRows(L)
+
           return (
             <div key={`${tId}-sch-${L}`} className="card p-0 overflow-hidden">
-
               {/* Barra colore full + CAMPO */}
               <div className="h-9 px-3 flex items-center justify-between text-white" style={{ background: color }}>
-                <div className="text-sm font-semibold">Partite {L} — {(meta[L]?.format ?? 'pool').toString().toUpperCase()}</div>
+                <div className="text-sm font-semibold">
+                  Partite {L} — {(meta[L]?.format ?? 'pool').toString().toUpperCase()}
+                </div>
+
                 <div className="flex items-center gap-2">
                   <span className="text-xs tracking-wide uppercase text-white/90">Campo</span>
                   <input
@@ -434,97 +437,102 @@ function commitTimeUncontrolled(
                 </div>
               </div>
 
-             {/* Elenco partite */}
-<div className="p-3 space-y-2">
-  {rows.length === 0 ? (
-    <div className="text-xs text-neutral-500">Imposta # squadre e formato.</div>
-  ) : (
-    rows.map((r, idx) => (
-      <div key={idx}>
-        {r.sep && <div className="h-px bg-neutral-800 my-2" />}
+              {/* Elenco partite */}
+              <div className="p-3 space-y-2">
+                {rows.length === 0 ? (
+                  <div className="text-xs text-neutral-500">Imposta # squadre e formato.</div>
+                ) : (
+                  rows.map((r, idx) => (
+                    <div key={idx}>
+                      {r.sep && <div className="h-px bg-neutral-800 my-2" />}
 
-        <div
-          className="grid items-center"
-          style={{
-            gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
-            columnGap: '.35rem',
-          }}
-        >
-          {/* Ora (uncontrolled + normalizzazione) */}
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="hh:mm"
-            className="input h-8 pl-1 pr-0 text-sm text-white tabular-nums shrink-0 w-[78px]"
-            defaultValue={(times[L] ?? [])[idx] ?? ''}
-            onBlur={(e) => commitTimeUncontrolled(L, idx, e.currentTarget, setTime)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                ;(e.currentTarget as HTMLInputElement).blur()
-              }
-            }}
-            title="Ora"
-          />
+                      <div
+                        className="grid items-center"
+                        style={{
+                          gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
+                          columnGap: '.35rem',
+                        }}
+                      >
+                        {/* Ora (uncontrolled + normalizzazione) */}
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="hh:mm"
+                          className="input h-8 pl-1 pr-0 text-sm text-white tabular-nums shrink-0 w-[78px]"
+                          defaultValue={(times[L] ?? [])[idx] ?? ''}
+                          onBlur={(e) => commitTimeUncontrolled(L, idx, e.currentTarget, setTime)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              ;(e.currentTarget as HTMLInputElement).blur()
+                            }
+                          }}
+                          title="Ora"
+                        />
 
-          {/* Squadra 1 */}
-          <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">{r.t1}</div>
+                        {/* Squadra 1 */}
+                        <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">{r.t1}</div>
 
-          {/* Punteggio A */}
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="\d*"
-            maxLength={2}
-            defaultValue={(scores[L]?.[r.scoreIdx]?.a ?? '')}
-            onBlur={(e) => {
-              const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-              setScore(L, r.scoreIdx, 'a', v)
-              e.currentTarget.value = v
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                ;(e.currentTarget as HTMLInputElement).blur()
-              }
-            }}
-            className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
-            title="Punteggio squadra 1"
-          />
+                        {/* Punteggio A */}
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="\d*"
+                          maxLength={2}
+                          defaultValue={(scores[L]?.[r.scoreIdx]?.a ?? '')}
+                          onBlur={(e) => {
+                            const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+                            setScore(L, r.scoreIdx, 'a', v)
+                            e.currentTarget.value = v
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              ;(e.currentTarget as HTMLInputElement).blur()
+                            }
+                          }}
+                          className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
+                          title="Punteggio squadra 1"
+                        />
 
-          {/* VS */}
-          <div className="shrink-0 w-6 -mx-0.5 text-center text-[13px] text-neutral-400">vs</div>
+                        {/* VS */}
+                        <div className="shrink-0 w-6 -mx-0.5 text-center text-[13px] text-neutral-400">vs</div>
 
-          {/* Punteggio B */}
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="\d*"
-            maxLength={2}
-            defaultValue={(scores[L]?.[r.scoreIdx]?.b ?? '')}
-            onBlur={(e) => {
-              const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-              setScore(L, r.scoreIdx, 'b', v)
-              e.currentTarget.value = v
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                ;(e.currentTarget as HTMLInputElement).blur()
-              }
-            }}
-            className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
-            title="Punteggio squadra 2"
-          />
+                        {/* Punteggio B */}
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="\d*"
+                          maxLength={2}
+                          defaultValue={(scores[L]?.[r.scoreIdx]?.b ?? '')}
+                          onBlur={(e) => {
+                            const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+                            setScore(L, r.scoreIdx, 'b', v)
+                            e.currentTarget.value = v
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              ;(e.currentTarget as HTMLInputElement).blur()
+                            }
+                          }}
+                          className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
+                          title="Punteggio squadra 2"
+                        />
 
-          {/* Squadra 2 */}
-          <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">{r.t2}</div>
-        </div>
+                        {/* Squadra 2 */}
+                        <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">{r.t2}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
-    ))
-  )}
-</div>
-
+    )
+  }
   return (
     <div className="p-6">
       <div className="card p-3 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
