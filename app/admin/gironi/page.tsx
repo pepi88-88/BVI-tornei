@@ -63,7 +63,7 @@ const pool4 = () => ({
   r2: ['Vincente G1 vs Vincente G2', 'Perdente G1 vs Perdente G2']
 })
 
-type Meta = { capacity: number; format: 'pool' | 'ita' }
+type Meta = { capacity: number; format: 'pool' | 'ita'; bestOf?: 1 | 3 }
 type PersistServer = {
   groupsCount: number;
   meta: Record<string, { capacity: number; format: 'pool'|'ita' }>;
@@ -256,7 +256,7 @@ useEffect(() => {
   function labelBySlot(L: string, slot: number) { const rid = assign[`${L}-${slot}`]; return rid ? (regMap[rid] ?? `Slot ${slot}`) : `Slot ${slot}` }
 
   function scheduleRows(L: string) {
-    const m = meta[L] ?? { capacity: 0, format: 'pool' }; const cap = m.capacity ?? 0; if (cap < 2) return [] as { t1: string, t2: string }[]
+    const m = meta[L] ?? { capacity: 0, format: 'pool', bestOf: 1 }; const cap = m.capacity ?? 0; if (cap < 2) return [] as { t1: string, t2: string }[]
     if (m.format === 'pool' && cap === 4) {
       const p = pool4(); return [
         { t1: labelBySlot(L, p.r1[0][0]), t2: labelBySlot(L, p.r1[0][1]) },
@@ -310,7 +310,7 @@ function commitTimeUncontrolled(
   // ---- UI: cards gironi
   function GroupCard({ L }: { L: string }) {
     const color = colorFor(L)
-    const m = meta[L] ?? { capacity: 0, format: 'pool' }
+     const m = meta[L] ?? { capacity: 0, format: 'pool', bestOf: 1 }
     const cap = m.capacity ?? 0
     return (
       <div className="card p-0 overflow-hidden" key={L}>
@@ -337,6 +337,23 @@ function commitTimeUncontrolled(
               <option value="ita">ITA</option>
               <option value="pool">Pool</option>
             </select>
+            <select
+  className="input w-20 bg-white/90 text-black"
+  value={String(m.bestOf ?? 1)}
+  onChange={e =>
+    setMeta(mm => ({
+      ...mm,
+      [L]: {
+        ...(mm[L] ?? { capacity: 0, format: 'pool', bestOf: 1 }),
+        bestOf: (Number(e.target.value) === 3 ? 3 : 1) as 1 | 3,
+      },
+    }))
+  }
+  title="Numero set"
+>
+  <option value="1">1 set</option>
+  <option value="3">3 set</option>
+</select>
             <div className="ml-auto text-xs opacity-80 text-white/90">#</div>
           </div>
         </div>
