@@ -258,7 +258,7 @@ useEffect(() => {
  function scheduleRows(L: string) {
   const m = meta[L] ?? { capacity: 0, format: 'pool', bestOf: 1 as 1|3 }
   const cap = m.capacity ?? 0
-  if (cap < 2) return [] as { t1: string; t2: string; scoreIdx: number; sep?: boolean }[]
+  if (cap < 2) return [] as { t1: string; t2: string; scoreIdx: number; matchIdx: number; setNo: 1|2|3; sep?: boolean }[]
 
   const bestOf = (m.bestOf ?? 1) as 1 | 3
 
@@ -277,14 +277,16 @@ useEffect(() => {
       : rr(Math.min(cap, 6)).map(([a, b]) => ({ t1: labelBySlot(L, a), t2: labelBySlot(L, b) }))
 
   // explode: 1->1 riga, 3->3 righe per match (con separatore sopra al match)
-  const out: { t1: string; t2: string; scoreIdx: number; sep?: boolean }[] = []
+  const out: { t1: string; t2: string; scoreIdx: number; matchIdx: number; setNo: 1|2|3; sep?: boolean }[] = []
   base.forEach((match, matchIdx) => {
     for (let s = 0; s < bestOf; s++) {
       out.push({
-        ...match,
-        scoreIdx: matchIdx * bestOf + s,
-        sep: bestOf === 3 && s === 0 && matchIdx > 0, // linea tra match
-      })
+  ...match,
+  scoreIdx: matchIdx * bestOf + s,
+  matchIdx,
+  setNo: (s + 1) as 1 | 2 | 3,
+  sep: bestOf === 3 && s === 0 && matchIdx > 0,
+})
     }
   })
   return out
@@ -454,24 +456,30 @@ function commitTimeUncontrolled(
                         }}
                       >
                         {/* Ora (uncontrolled + normalizzazione) */}
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="hh:mm"
-                          className="input h-8 pl-1 pr-0 text-sm text-white tabular-nums shrink-0 w-[78px]"
-                          defaultValue={(times[L] ?? [])[idx] ?? ''}
-                          onBlur={(e) => commitTimeUncontrolled(L, idx, e.currentTarget, setTime)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              ;(e.currentTarget as HTMLInputElement).blur()
-                            }
-                          }}
-                          title="Ora"
-                        />
+                       {r.setNo === 1 ? (
+  <input
+    type="text"
+    inputMode="numeric"
+    placeholder="hh:mm"
+    className="input h-8 pl-1 pr-0 text-sm text-white tabular-nums shrink-0 w-[78px]"
+    defaultValue={(times[L] ?? [])[r.matchIdx] ?? ''}   // <-- matchIdx (NON idx)
+    onBlur={(e) => commitTimeUncontrolled(L, r.matchIdx, e.currentTarget, setTime)} // <-- matchIdx
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        ;(e.currentTarget as HTMLInputElement).blur()
+      }
+    }}
+    title="Ora"
+  />
+) : (
+  <div className="w-[78px] h-8" />  // placeholder vuoto (stessa larghezza)
+)}
 
                         {/* Squadra 1 */}
-                        <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">{r.t1}</div>
+                       <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">
+  {r.setNo === 1 ? r.t1 : `SET ${r.setNo}`}
+</div>>
 
                         {/* Punteggio A */}
                         <input
@@ -521,7 +529,9 @@ function commitTimeUncontrolled(
                         />
 
                         {/* Squadra 2 */}
-                        <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">{r.t2}</div>
+                       <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">
+  {r.setNo === 1 ? r.t2 : ''}
+</div>
                       </div>
                     </div>
                   ))
