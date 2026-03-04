@@ -479,7 +479,7 @@ function commitTimeUncontrolled(
                         {/* Squadra 1 */}
                        <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">
   {r.setNo === 1 ? r.t1 : `SET ${r.setNo}`}
-</div>>
+</div>
 
                         {/* Punteggio A */}
                         <input
