@@ -255,18 +255,40 @@ useEffect(() => {
 
   function labelBySlot(L: string, slot: number) { const rid = assign[`${L}-${slot}`]; return rid ? (regMap[rid] ?? `Slot ${slot}`) : `Slot ${slot}` }
 
-  function scheduleRows(L: string) {
-    const m = meta[L] ?? { capacity: 0, format: 'pool', bestOf: 1 }; const cap = m.capacity ?? 0; if (cap < 2) return [] as { t1: string, t2: string }[]
-    if (m.format === 'pool' && cap === 4) {
-      const p = pool4(); return [
-        { t1: labelBySlot(L, p.r1[0][0]), t2: labelBySlot(L, p.r1[0][1]) },
-        { t1: labelBySlot(L, p.r1[1][0]), t2: labelBySlot(L, p.r1[1][1]) },
-        { t1: 'Vincente G1', t2: 'Vincente G2' },
-        { t1: 'Perdente G1', t2: 'Perdente G2' },
-      ]
+ function scheduleRows(L: string) {
+  const m = meta[L] ?? { capacity: 0, format: 'pool', bestOf: 1 as 1|3 }
+  const cap = m.capacity ?? 0
+  if (cap < 2) return [] as { t1: string; t2: string; scoreIdx: number; sep?: boolean }[]
+
+  const bestOf = (m.bestOf ?? 1) as 1 | 3
+
+  // base matches (1 riga per match)
+  const base =
+    (m.format === 'pool' && cap === 4)
+      ? (() => {
+          const p = pool4()
+          return [
+            { t1: labelBySlot(L, p.r1[0][0]), t2: labelBySlot(L, p.r1[0][1]) },
+            { t1: labelBySlot(L, p.r1[1][0]), t2: labelBySlot(L, p.r1[1][1]) },
+            { t1: 'Vincente G1', t2: 'Vincente G2' },
+            { t1: 'Perdente G1', t2: 'Perdente G2' },
+          ]
+        })()
+      : rr(Math.min(cap, 6)).map(([a, b]) => ({ t1: labelBySlot(L, a), t2: labelBySlot(L, b) }))
+
+  // explode: 1->1 riga, 3->3 righe per match (con separatore sopra al match)
+  const out: { t1: string; t2: string; scoreIdx: number; sep?: boolean }[] = []
+  base.forEach((match, matchIdx) => {
+    for (let s = 0; s < bestOf; s++) {
+      out.push({
+        ...match,
+        scoreIdx: matchIdx * bestOf + s,
+        sep: bestOf === 3 && s === 0 && matchIdx > 0, // linea tra match
+      })
     }
-    return rr(Math.min(cap, 6)).map(([a, b]) => ({ t1: labelBySlot(L, a), t2: labelBySlot(L, b) }))
-  }
+  })
+  return out
+}
 
  
 
@@ -416,13 +438,15 @@ function commitTimeUncontrolled(
               <div className="p-3 space-y-2">
                 {rows.length === 0 ? (
                   <div className="text-xs text-neutral-500">Imposta # squadre e formato.</div>
-                ) : rows.map((r, idx) => (
-                  <div
-                    key={idx}
-                    className="grid items-center"
-                    style={{ gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)', columnGap: '.35rem' }}
-                  >
-                   {/* Ora (uncontrolled + normalizzazione) */}
+              ) : rows.map((r, idx) => (
+  <div key={idx}>
+    {r.sep && <div className="h-px bg-neutral-800 my-2" />}
+
+    <div
+      className="grid items-center"
+      style={{ gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)', columnGap: '.35rem' }}
+    >
+      {/* Ora (uncontrolled + normalizzazione) */}
 <input
   type="text"
   inputMode="numeric"
@@ -442,25 +466,51 @@ function commitTimeUncontrolled(
                     {/* Squadra 1 */}
                     <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">{r.t1}</div>
                     {/* Punteggio A */}
-                    <input
-                      type="text" inputMode="numeric" pattern="\d*" maxLength={2}
-                      defaultValue={(scores[L]?.[idx]?.a ?? '')}
-                      onBlur={(e) => { const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2); setScore(L, idx, 'a', v); e.currentTarget.value = v }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur() } }}
-                      className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
-                      title="Punteggio squadra 1"
-                    />
-                    {/* VS */}
-                    <div className="shrink-0 w-6 -mx-0.5 text-center text-[13px] text-neutral-400">vs</div>
-                    {/* Punteggio B */}
-                    <input
-                      type="text" inputMode="numeric" pattern="\d*" maxLength={2}
-                      defaultValue={(scores[L]?.[idx]?.b ?? '')}
-                      onBlur={(e) => { const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2); setScore(L, idx, 'b', v); e.currentTarget.value = v }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur() } }}
-                      className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
-                      title="Punteggio squadra 2"
-                    />
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="\d*"
+  maxLength={2}
+  defaultValue={(scores[L]?.[r.scoreIdx]?.a ?? '')}
+  onBlur={(e) => {
+    const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+    setScore(L, r.scoreIdx, 'a', v)
+    e.currentTarget.value = v
+  }}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      ;(e.currentTarget as HTMLInputElement).blur()
+    }
+  }}
+  className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
+  title="Punteggio squadra 1"
+/>
+
+{/* VS */}
+<div className="shrink-0 w-6 -mx-0.5 text-center text-[13px] text-neutral-400">vs</div>
+
+{/* Punteggio B */}
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="\d*"
+  maxLength={2}
+  defaultValue={(scores[L]?.[r.scoreIdx]?.b ?? '')}
+  onBlur={(e) => {
+    const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+    setScore(L, r.scoreIdx, 'b', v)
+    e.currentTarget.value = v
+  }}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      ;(e.currentTarget as HTMLInputElement).blur()
+    }
+  }}
+  className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
+  title="Punteggio squadra 2"
+/>
                     {/* Squadra 2 */}
                     <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">{r.t2}</div>
                   </div>
