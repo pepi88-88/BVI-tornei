@@ -521,7 +521,16 @@ type Persist = {
   labels?: Record<string, string>
 }
 type Score = { a: string; b: string }
-
+type ScheduleRow = {
+  key: string
+  a?: number
+  b?: number
+  labelA: string
+  labelB: string
+  setNo: number        // 1..bestOf
+  matchIdx: number     // indice match “logico”
+  scoreIdx: number     // indice riga nel vettore scores[L]
+}
 const chunk = <T,>(arr: T[], size: number) => {
   const out: T[][] = []
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
@@ -787,7 +796,7 @@ function MobileGroupsCarousel({
 }: {
   letters: string[]
   tId: string
-  scheduleRows: (L: string) => { key: string; a?: number; b?: number; labelA: string; labelB: string }[]
+  scheduleRows: (L: string) => ScheduleRow[]
   setTime: (L: string, idx: number, val: string) => void
   setScore: (L: string, idx: number, side: 'a' | 'b', val: string) => void
   fmtOf: (L: string) => string
@@ -1075,26 +1084,30 @@ function matchPointsSum(L: string, matchIdx: number): { aPF: number; aPS: number
   }
   return { aPF, aPS, bPF, bPS }
 }
- function scheduleRows(L: string) {
+function scheduleRows(L: string): ScheduleRow[] {
   const cap = capOf(L)
   const fmt = fmtOf(L)
   const bestOf = bestOfOf(L)
 
-  if (cap < 2) return [] as any[]
+  if (cap < 2) return []
 
-  // helper: "espandi" un match in bestOf righe (set1..setN)
-  const explodeMatch = (base: { key: string; a?: number; b?: number; labelA: string; labelB: string }, matchIdx: number) => {
+  const explodeMatch = (
+    base: { key: string; a?: number; b?: number; labelA: string; labelB: string },
+    matchIdx: number
+  ): ScheduleRow[] => {
     return Array.from({ length: bestOf }, (_, si) => ({
       ...base,
-      setNo: si + 1,                // 1..bestOf
-      matchIdx,                     // indice match logico
-      scoreIdx: matchIdx * bestOf + si, // indice riga dentro scores[L]
+      key: `${base.key}-S${si + 1}`,      // 👈 IMPORTANT: key unica per set
+      setNo: si + 1,
+      matchIdx,
+      scoreIdx: matchIdx * bestOf + si,
     }))
   }
 
   // POOL 4 (semi + finali)
   if (fmt === 'pool' && cap === 4) {
-    const s1 = poolPairs.semi1, s2 = poolPairs.semi2
+    const s1 = poolPairs.semi1
+    const s2 = poolPairs.semi2
 
     const m0 = { key: 'S1', a: s1[0], b: s1[1], labelA: labelBySlot(L, s1[0]), labelB: labelBySlot(L, s1[1]) }
     const m1 = { key: 'S2', a: s2[0], b: s2[1], labelA: labelBySlot(L, s2[0]), labelB: labelBySlot(L, s2[1]) }
@@ -1110,16 +1123,16 @@ function matchPointsSum(L: string, matchIdx: number): { aPF: number; aPS: number
     const m2 = { key: 'F12', a: wSlot0, b: wSlot1, labelA: wSlot0 ? labelBySlot(L, wSlot0) : 'Vincente G1', labelB: wSlot1 ? labelBySlot(L, wSlot1) : 'Vincente G2' }
     const m3 = { key: 'F34', a: lSlot0, b: lSlot1, labelA: lSlot0 ? labelBySlot(L, lSlot0) : 'Perdente G1', labelB: lSlot1 ? labelBySlot(L, lSlot1) : 'Perdente G2' }
 
-    const out: any[] = []
-    out.push(...explodeMatch(m0, 0))
-    out.push(...explodeMatch(m1, 1))
-    out.push(...explodeMatch(m2, 2))
-    out.push(...explodeMatch(m3, 3))
-    return out
+    return [
+      ...explodeMatch(m0, 0),
+      ...explodeMatch(m1, 1),
+      ...explodeMatch(m2, 2),
+      ...explodeMatch(m3, 3),
+    ]
   }
 
   // Round-robin classico
-  const base = rr(cap).map(([a, b], i) => ({
+  const baseMatches = rr(cap).map(([a, b], i) => ({
     key: `R${i + 1}`,
     a,
     b,
@@ -1127,10 +1140,12 @@ function matchPointsSum(L: string, matchIdx: number): { aPF: number; aPS: number
     labelB: labelBySlot(L, b),
   }))
 
-  const out: any[] = []
-  base.forEach((m, matchIdx) => out.push(...explodeMatch(m, matchIdx)))
+  const out: ScheduleRow[] = []
+  baseMatches.forEach((m, matchIdx) => out.push(...explodeMatch(m, matchIdx)))
   return out
 }
+
+ 
 // Salvataggio auto su Supabase di times + scores (stesso schema della pagina /admin/gironi)
 useEffect(() => {
   // salva solo quando:
