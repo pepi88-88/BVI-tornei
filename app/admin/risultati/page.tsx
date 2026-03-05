@@ -30,18 +30,17 @@ function rrPairs(n: number) {
   }
   return out
 }
-type Meta = { capacity: number; format: 'pool' | 'ita' }
-
+type Meta = { capacity: number; format: 'pool' | 'ita'; bestOf?: 1 | 3 }
 function normalizeMeta(
   meta: Record<string, { capacity: number; format?: 'pool' | 'ita' }> | undefined
 ): Record<string, Meta> {
   const out: Record<string, Meta> = {}
   for (const [k, v] of Object.entries(meta || {})) {
-    out[k] = {
-      capacity: Number(v?.capacity ?? 0),
-      // default sicuro: se manca o è invalido, usa 'pool'
-      format: v?.format === 'ita' ? 'ita' : 'pool',
-    }
+   out[k] = {
+  capacity: Number(v?.capacity ?? 0),
+  format: v?.format === 'ita' ? 'ita' : 'pool',
+  bestOf: (Number((v as any)?.bestOf) === 3 ? 3 : 1) as 1 | 3,
+}
   }
   return out
 }
@@ -831,12 +830,16 @@ function MobileGroupsCarousel({
                           columnGap: '.5rem',
                         }}
                       >
-                        <input
-                          type="time"
-                          className="input h-11 pl-2 pr-1 text-base text-white w-[110px] tabular-nums"
-                          value={(times[L] ?? [])[ridx] ?? ''}
-                          onChange={(e) => setTime(L, ridx, e.target.value)}
-                        />
+                       {r.setNo === 1 ? (
+  <input
+    type="time"
+    className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
+    value={(times[L] ?? [])[r.matchIdx] ?? ''}
+    onChange={(e) => setTime(L, r.matchIdx, e.target.value)}
+  />
+) : (
+  <div className="w-[92px] h-8" />
+)}
 
                         <div className="min-w-0 truncate text-[15px] text-right pr-1 font-medium">
                           {r.labelA}
@@ -845,10 +848,10 @@ function MobileGroupsCarousel({
                         <input
                           className="input h-11 w-16 px-2 text-base text-center"
                           inputMode="numeric"
-                          value={scores[L]?.[ridx]?.a ?? ''}
+                          value={scores[L]?.[r.scoreIdx]?.a ?? ''}
                           onChange={(e) => {
                             const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                            setScore(L, ridx, 'a', v)
+                            setScore(L, r.scoreIdx, 'a', v)
                           }}
                         />
 
@@ -857,10 +860,10 @@ function MobileGroupsCarousel({
                         <input
                           className="input h-11 w-16 px-2 text-base text-center"
                           inputMode="numeric"
-                          value={scores[L]?.[ridx]?.b ?? ''}
+                          value={scores[L]?.[r.scoreIdx]?.b ?? ''}
                           onChange={(e) => {
                             const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                            setScore(L, ridx, 'b', v)
+                            setScore(L, r.scoreIdx, 'b', v)
                           }}
                         />
 
@@ -1030,27 +1033,104 @@ if (raw) return raw
     const arr = [...(scores[L] ?? [])]; const row = arr[idx] ?? { a:'', b:'' }
     row[side] = val; arr[idx] = row; setScores(s => ({ ...s, [L]: arr }))
   }
+function bestOfOf(L: string): 1 | 3 {
+  const b = (store?.meta?.[L]?.bestOf ?? 1) as any
+  return Number(b) === 3 ? 3 : 1
+}
+function setsToWin(bestOf: 1 | 3) {
+  return bestOf === 3 ? 2 : 1
+}
 
-  function scheduleRows(L: string) {
-    const cap = capOf(L); const fmt = fmtOf(L)
-    if (cap < 2) return [] as { key: string; a?: number; b?: number; labelA: string; labelB: string }[]
-    if (fmt === 'pool' && cap === 4) {
-      const s1 = poolPairs.semi1, s2 = poolPairs.semi2
-      const rows: any[] = [
-        { key:'S1', a:s1[0], b:s1[1], labelA:labelBySlot(L,s1[0]), labelB:labelBySlot(L,s1[1]) },
-        { key:'S2', a:s2[0], b:s2[1], labelA:labelBySlot(L,s2[0]), labelB:labelBySlot(L,s2[1]) },
-      ]
-      const sc = scores[L] ?? []
-      const w1 = sc[0]?.a && sc[0]?.b ? (Number(sc[0].a) > Number(sc[0].b) ? s1[0] : s1[1]) : undefined
-      const l1 = w1 ? (w1 === s1[0] ? s1[1] : s1[0]) : undefined
-      const w2 = sc[1]?.a && sc[1]?.b ? (Number(sc[1].a) > Number(sc[1].b) ? s2[0] : s2[1]) : undefined
-      const l2 = w2 ? (w2 === s2[0] ? s2[1] : s2[0]) : undefined
-      rows.push({ key:'F12', a:w1, b:w2, labelA: w1?labelBySlot(L,w1):'Vincente G1', labelB: w2?labelBySlot(L,w2):'Vincente G2' })
-      rows.push({ key:'F34', a:l1, b:l2, labelA: l1?labelBySlot(L,l1):'Perdente G1', labelB: l2?labelBySlot(L,l2):'Perdente G2' })
-      return rows
-    }
-    return rr(cap).map(([a,b], i) => ({ key:`R${i+1}`, a, b, labelA:labelBySlot(L,a), labelB:labelBySlot(L,b) }))
+function matchWinnerFromScores(L: string, matchIdx: number): { winner?: 'A'|'B' } {
+  const bestOf = bestOfOf(L)
+  const need = setsToWin(bestOf)
+  const sc = scores[L] ?? []
+  let wa = 0, wb = 0
+
+  for (let s = 0; s < bestOf; s++) {
+    const row = sc[matchIdx * bestOf + s]
+    const a = Number(row?.a), b = Number(row?.b)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+    if (a === b) continue // pareggi non li contiamo (in beach non dovrebbe succedere)
+    if (a > b) wa++
+    else wb++
   }
+
+  if (wa >= need) return { winner: 'A' }
+  if (wb >= need) return { winner: 'B' }
+  return {}
+}
+
+function matchPointsSum(L: string, matchIdx: number): { aPF: number; aPS: number; bPF: number; bPS: number } {
+  const bestOf = bestOfOf(L)
+  const sc = scores[L] ?? []
+  let aPF = 0, aPS = 0, bPF = 0, bPS = 0
+
+  for (let s = 0; s < bestOf; s++) {
+    const row = sc[matchIdx * bestOf + s]
+    const a = Number(row?.a), b = Number(row?.b)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+    aPF += a; aPS += b
+    bPF += b; bPS += a
+  }
+  return { aPF, aPS, bPF, bPS }
+}
+ function scheduleRows(L: string) {
+  const cap = capOf(L)
+  const fmt = fmtOf(L)
+  const bestOf = bestOfOf(L)
+
+  if (cap < 2) return [] as any[]
+
+  // helper: "espandi" un match in bestOf righe (set1..setN)
+  const explodeMatch = (base: { key: string; a?: number; b?: number; labelA: string; labelB: string }, matchIdx: number) => {
+    return Array.from({ length: bestOf }, (_, si) => ({
+      ...base,
+      setNo: si + 1,                // 1..bestOf
+      matchIdx,                     // indice match logico
+      scoreIdx: matchIdx * bestOf + si, // indice riga dentro scores[L]
+    }))
+  }
+
+  // POOL 4 (semi + finali)
+  if (fmt === 'pool' && cap === 4) {
+    const s1 = poolPairs.semi1, s2 = poolPairs.semi2
+
+    const m0 = { key: 'S1', a: s1[0], b: s1[1], labelA: labelBySlot(L, s1[0]), labelB: labelBySlot(L, s1[1]) }
+    const m1 = { key: 'S2', a: s2[0], b: s2[1], labelA: labelBySlot(L, s2[0]), labelB: labelBySlot(L, s2[1]) }
+
+    const w0 = matchWinnerFromScores(L, 0).winner
+    const w1 = matchWinnerFromScores(L, 1).winner
+
+    const wSlot0 = w0 ? (w0 === 'A' ? s1[0] : s1[1]) : undefined
+    const lSlot0 = w0 ? (w0 === 'A' ? s1[1] : s1[0]) : undefined
+    const wSlot1 = w1 ? (w1 === 'A' ? s2[0] : s2[1]) : undefined
+    const lSlot1 = w1 ? (w1 === 'A' ? s2[1] : s2[0]) : undefined
+
+    const m2 = { key: 'F12', a: wSlot0, b: wSlot1, labelA: wSlot0 ? labelBySlot(L, wSlot0) : 'Vincente G1', labelB: wSlot1 ? labelBySlot(L, wSlot1) : 'Vincente G2' }
+    const m3 = { key: 'F34', a: lSlot0, b: lSlot1, labelA: lSlot0 ? labelBySlot(L, lSlot0) : 'Perdente G1', labelB: lSlot1 ? labelBySlot(L, lSlot1) : 'Perdente G2' }
+
+    const out: any[] = []
+    out.push(...explodeMatch(m0, 0))
+    out.push(...explodeMatch(m1, 1))
+    out.push(...explodeMatch(m2, 2))
+    out.push(...explodeMatch(m3, 3))
+    return out
+  }
+
+  // Round-robin classico
+  const base = rr(cap).map(([a, b], i) => ({
+    key: `R${i + 1}`,
+    a,
+    b,
+    labelA: labelBySlot(L, a),
+    labelB: labelBySlot(L, b),
+  }))
+
+  const out: any[] = []
+  base.forEach((m, matchIdx) => out.push(...explodeMatch(m, matchIdx)))
+  return out
+}
 // Salvataggio auto su Supabase di times + scores (stesso schema della pagina /admin/gironi)
 useEffect(() => {
   // salva solo quando:
@@ -1096,7 +1176,6 @@ useEffect(() => {
 }, [tId, times, scores, store, isLoadingState, loadedFor])
 
 
-
   // ---------- Classifica + avulsa: salvataggi ----------
   type TeamStat = { slot:number; label:string; W:number; PF:number; PS:number; QP:number; finish?:number }
 
@@ -1111,29 +1190,50 @@ useEffect(() => {
     const rows = scheduleRows(L); const sc = scores[L] ?? []
     const apply = (slotA?:number, slotB?:number, idx?:number) => {
       if (!slotA || !slotB) return
-      const a = Number(sc[idx!]?.a), b = Number(sc[idx!]?.b)
-      if (!Number.isFinite(a) || !Number.isFinite(b)) return
-      init[slotA].PF += a; init[slotA].PS += b
-      init[slotB].PF += b; init[slotB].PS += a
-      if (a>b) init[slotA].W += 1; else if (b>a) init[slotB].W += 1
+    const win = matchWinnerFromScores(L, idx!).winner
+const pts = matchPointsSum(L, idx!)
+
+init[slotA].PF += pts.aPF; init[slotA].PS += pts.aPS
+init[slotB].PF += pts.bPF; init[slotB].PS += pts.bPS
+
+if (win === 'A') init[slotA].W += 1
+else if (win === 'B') init[slotB].W += 1
     }
-    rows.forEach((r,idx) => apply(r.a, r.b, idx))
+   rows.forEach((r) => {
+  if (r?.setNo !== 1) return         // conta una volta sola per match
+  apply(r.a, r.b, r.matchIdx)        // matchIdx vero
+})
     for (const s of Object.values(init)) s.QP = s.PF / Math.max(1, s.PS)
 
     if (fmt === 'pool' && cap === 4) {
-      const s1:[number,number]=[1,4], s2:[number,number]=[2,3]
-      const w1 = (sc[0]?.a && sc[0]?.b) ? (Number(sc[0].a) > Number(sc[0].b) ? s1[0] : s1[1]) : undefined
-      const w2 = (sc[1]?.a && sc[1]?.b) ? (Number(sc[1].a) > Number(sc[1].b) ? s2[0] : s2[1]) : undefined
-      const l1 = w1 ? (w1===s1[0]?s1[1]:s1[0]) : undefined
-      const l2 = w2 ? (w2===s2[0]?s2[1]:s2[0]) : undefined
-      if (w1 && w2 && sc[2]?.a && sc[2]?.b) {
-        const a=Number(sc[2].a), b=Number(sc[2].b)
-        init[w1].finish = a>b ? 1 : 2; init[w2].finish = a>b ? 2 : 1
-      }
-      if (l1 && l2 && sc[3]?.a && sc[3]?.b) {
-        const a=Number(sc[3].a), b=Number(sc[3].b)
-        init[l1].finish = a>b ? 3 : 4; init[l2].finish = a>b ? 4 : 3
-      }
+      const s1 = poolPairs.semi1
+const s2 = poolPairs.semi2
+      // winners delle semifinali (matchIdx 0 e 1)
+const w1 = matchWinnerFromScores(L, 0).winner
+const w2 = matchWinnerFromScores(L, 1).winner
+
+const wSlot1 = w1 ? (w1 === 'A' ? s1[0] : s1[1]) : undefined
+const lSlot1 = w1 ? (w1 === 'A' ? s1[1] : s1[0]) : undefined
+const wSlot2 = w2 ? (w2 === 'A' ? s2[0] : s2[1]) : undefined
+const lSlot2 = w2 ? (w2 === 'A' ? s2[1] : s2[0]) : undefined
+
+// Finale 1-2 (matchIdx 2)
+const wf = matchWinnerFromScores(L, 2).winner
+if (wSlot1 && wSlot2 && wf) {
+  const first  = wf === 'A' ? wSlot1 : wSlot2
+  const second = wf === 'A' ? wSlot2 : wSlot1
+  init[first].finish = 1
+  init[second].finish = 2
+}
+
+// Finale 3-4 (matchIdx 3)
+const wl = matchWinnerFromScores(L, 3).winner
+if (lSlot1 && lSlot2 && wl) {
+  const third  = wl === 'A' ? lSlot1 : lSlot2
+  const fourth = wl === 'A' ? lSlot2 : lSlot1
+  init[third].finish = 3
+  init[fourth].finish = 4
+}
       const arr = Object.values(init)
       arr.sort((x,y) => {
         const fx=x.finish??999, fy=y.finish??999
@@ -1159,6 +1259,25 @@ useEffect(() => {
     out.sort((a,b) => (a.pos-b.pos) || (b.W-a.W) || (b.QP-a.QP) || a.letter.localeCompare(b.letter))
     return out
   }, [store, letters, scores])
+      useEffect(() => {
+  if (!tourId || !tId || !store) return
+
+  // 1) groups_rank:{tour}:{tappa}  -> { A:[...], B:[...], ... }
+  const rankByGroup: Record<string, string[]> = {}
+  for (const L of letters) {
+    rankByGroup[L] = computeStatsFor(L).map(r => r.label)
+  }
+
+  // 2) classifica_avulsa:{tour}:{tappa} -> [ ...labels in ordine ]
+  const avulsaArr = avulsa.map(r => r.label)
+
+  try {
+    localStorage.setItem(`groups_rank:${tourId}:${tId}`, JSON.stringify(rankByGroup))
+    localStorage.setItem(`classifica_avulsa:${tourId}:${tId}`, JSON.stringify(avulsaArr))
+    // se in qualche punto leggi ancora "avulsa:" mettiamo anche quello
+    localStorage.setItem(`avulsa:${tourId}:${tId}`, JSON.stringify(avulsaArr))
+  } catch {}
+}, [tourId, tId, store, letters, scores, avulsa])
 
 
   // -------- Tabelloni + winners ----------
@@ -1517,30 +1636,34 @@ return (
                       columnGap: '.35rem',
                     }}
                   >
-                    <input
-                      type="time"
-                      className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
-                      value={(times[L] ?? [])[ridx] ?? ''}
-                      onChange={(e) => setTime(L, ridx, e.target.value)}
-                    />
+                   {r.setNo === 1 ? (
+  <input
+    type="time"
+    className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
+    value={(times[L] ?? [])[r.matchIdx] ?? ''}
+    onChange={(e) => setTime(L, r.matchIdx, e.target.value)}
+  />
+) : (
+  <div className="w-[92px] h-8" />
+)}
                     <div className="min-w-0 truncate text-sm text-right pr-0.5">{r.labelA}</div>
                     <input
                       className="input h-8 w-12 px-1 text-sm text-center"
                       inputMode="numeric"
-                      value={scores[L]?.[ridx]?.a ?? ''}
+                      value={scores[L]?.[r.scoreIdx]?.a ?? ''}
                       onChange={(e) => {
                         const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                        setScore(L, ridx, 'a', v)
+                        setScore(L, r.scoreIdx, 'a', v)
                       }}
                     />
                     <div className="w-6 text-center text-[13px] text-neutral-400">vs</div>
                     <input
                       className="input h-8 w-12 px-1 text-sm text-center"
                       inputMode="numeric"
-                      value={scores[L]?.[ridx]?.b ?? ''}
+                      value={scores[L]?.[r.scoreIdx]?.b ?? ''}
                       onChange={(e) => {
                         const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                        setScore(L, ridx, 'b', v)
+                        setScore(L, r.scoreIdx, 'b', v)
                       }}
                     />
                     <div className="min-w-0 truncate text-sm pl-1">{r.labelB}</div>
