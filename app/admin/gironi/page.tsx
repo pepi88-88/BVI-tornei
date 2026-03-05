@@ -292,7 +292,224 @@ useEffect(() => {
   return out
 }
 
- 
+function computeGroupRankingCorrect(L: string) {
+  const rows = scheduleRows(L)
+  const bestOf = (meta[L]?.bestOf ?? 1) as 1 | 3
+
+  const isRealTeam = (name: string) => {
+    const s = String(name || '').trim().toLowerCase()
+    if (!s) return false
+    if (s.startsWith('vincente')) return false
+    if (s.startsWith('perdente')) return false
+    return true
+  }
+
+  type TeamStat = {
+    team: string
+    matchWon: number
+    matchLost: number
+    setWon: number
+    setLost: number
+    pointsWon: number
+    pointsLost: number
+  }
+
+  const ensure = (map: Record<string, TeamStat>, team: string) => {
+    if (!map[team]) {
+      map[team] = {
+        team,
+        matchWon: 0,
+        matchLost: 0,
+        setWon: 0,
+        setLost: 0,
+        pointsWon: 0,
+        pointsLost: 0,
+      }
+    }
+  }
+
+  const ratio = (a: number, b: number) => {
+    if (b <= 0) return a > 0 ? 999999 : 0
+    return a / b
+  }
+
+  // 1) raggruppo righe per matchIdx
+  const matchMap: Record<number, typeof rows> = {}
+  for (const r of rows) {
+    if (!matchMap[r.matchIdx]) matchMap[r.matchIdx] = []
+    matchMap[r.matchIdx].push(r)
+  }
+
+  type MatchResult = {
+    A: string
+    B: string
+    Aw: number
+    Bw: number
+    Aset: number
+    Bset: number
+    Ap: number
+    Bp: number
+    played: boolean
+  }
+
+  const matches: MatchResult[] = []
+
+  Object.values(matchMap).forEach((sets) => {
+    const A = sets[0]?.t1 ?? ''
+    const B = sets[0]?.t2 ?? ''
+    if (!isRealTeam(A) || !isRealTeam(B)) return
+
+    let Aset = 0
+    let Bset = 0
+    let Ap = 0
+    let Bp = 0
+    let anySetPlayed = false
+
+    for (const s of sets) {
+      const aRaw = scores[L]?.[s.scoreIdx]?.a
+      const bRaw = scores[L]?.[s.scoreIdx]?.b
+      const a = Number(aRaw)
+      const b = Number(bRaw)
+
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+      if (a === 0 && b === 0) continue
+
+      anySetPlayed = true
+      Ap += a
+      Bp += b
+
+      if (a > b) Aset++
+      else if (b > a) Bset++
+    }
+
+    if (!anySetPlayed) return
+
+    let Aw = 0
+    let Bw = 0
+
+    if (bestOf === 1) {
+      if (Ap > Bp) Aw = 1
+      else if (Bp > Ap) Bw = 1
+    } else {
+      if (Aset > Bset) Aw = 1
+      else if (Bset > Aset) Bw = 1
+    }
+
+    matches.push({ A, B, Aw, Bw, Aset, Bset, Ap, Bp, played: true })
+  })
+
+  // 2) stats globali
+  const global: Record<string, TeamStat> = {}
+
+  for (const m of matches) {
+    ensure(global, m.A)
+    ensure(global, m.B)
+
+    global[m.A].pointsWon += m.Ap
+    global[m.A].pointsLost += m.Bp
+    global[m.B].pointsWon += m.Bp
+    global[m.B].pointsLost += m.Ap
+
+    global[m.A].setWon += m.Aset
+    global[m.A].setLost += m.Bset
+    global[m.B].setWon += m.Bset
+    global[m.B].setLost += m.Aset
+
+    if (m.Aw === 1) {
+      global[m.A].matchWon += 1
+      global[m.B].matchLost += 1
+    } else if (m.Bw === 1) {
+      global[m.B].matchWon += 1
+      global[m.A].matchLost += 1
+    }
+  }
+
+  const teamsAll = Object.values(global)
+  if (!teamsAll.length) return []
+
+  // 3) mini-classifica per scontro diretto
+  const miniTable = (teamNames: string[]) => {
+    const setTeams = new Set(teamNames)
+    const mini: Record<string, TeamStat> = {}
+    for (const t of teamNames) ensure(mini, t)
+
+    for (const m of matches) {
+      if (!setTeams.has(m.A) || !setTeams.has(m.B)) continue
+
+      mini[m.A].pointsWon += m.Ap
+      mini[m.A].pointsLost += m.Bp
+      mini[m.B].pointsWon += m.Bp
+      mini[m.B].pointsLost += m.Ap
+
+      mini[m.A].setWon += m.Aset
+      mini[m.A].setLost += m.Bset
+      mini[m.B].setWon += m.Bset
+      mini[m.B].setLost += m.Aset
+
+      if (m.Aw === 1) {
+        mini[m.A].matchWon += 1
+        mini[m.B].matchLost += 1
+      } else if (m.Bw === 1) {
+        mini[m.B].matchWon += 1
+        mini[m.A].matchLost += 1
+      }
+    }
+
+    return Object.values(mini)
+  }
+
+  // 4) raggruppo per vittorie e ordino con scontro diretto
+  const groupsByWins: Record<number, TeamStat[]> = {}
+  for (const t of teamsAll) {
+    const w = t.matchWon
+    if (!groupsByWins[w]) groupsByWins[w] = []
+    groupsByWins[w].push(t)
+  }
+
+  const winsSorted = Object.keys(groupsByWins).map(Number).sort((a, b) => b - a)
+  const finalList: TeamStat[] = []
+
+  for (const w of winsSorted) {
+    const group = groupsByWins[w]
+    if (group.length === 1) {
+      finalList.push(group[0])
+      continue
+    }
+
+    const names = group.map(x => x.team)
+    const mini = miniTable(names)
+    const miniMap = Object.fromEntries(mini.map(x => [x.team, x]))
+
+    group.sort((a, b) => {
+      const ma = miniMap[a.team]
+      const mb = miniMap[b.team]
+
+      if (mb.matchWon !== ma.matchWon) return mb.matchWon - ma.matchWon
+
+      const srA = ratio(ma.setWon, ma.setLost)
+      const srB = ratio(mb.setWon, mb.setLost)
+      if (srB !== srA) return srB - srA
+
+      const prA = ratio(ma.pointsWon, ma.pointsLost)
+      const prB = ratio(mb.pointsWon, mb.pointsLost)
+      if (prB !== prA) return prB - prA
+
+      const gsrA = ratio(a.setWon, a.setLost)
+      const gsrB = ratio(b.setWon, b.setLost)
+      if (gsrB !== gsrA) return gsrB - gsrA
+
+      const gprA = ratio(a.pointsWon, a.pointsLost)
+      const gprB = ratio(b.pointsWon, b.pointsLost)
+      if (gprB !== gprA) return gprB - gprA
+
+      return a.team.localeCompare(b.team)
+    })
+
+    finalList.push(...group)
+  }
+
+  return finalList
+} 
 
 function normalizeTime(raw: string) {
   let v = String(raw || '').trim()
@@ -537,6 +754,26 @@ function commitTimeUncontrolled(
                   ))
                 )}
               </div>
+              {/* Classifica */}
+{(() => {
+  const ranking = computeGroupRankingCorrect(L)
+  if (!ranking.length) return null
+  return (
+    <div className="px-3 pb-3">
+      <div className="mt-2 border-t border-neutral-800 pt-2">
+        <div className="text-xs text-neutral-400 mb-1">Classifica {L}</div>
+        <div className="space-y-1 text-sm">
+          {ranking.map((r, i) => (
+            <div key={r.team} className="flex justify-between gap-2">
+              <div className="min-w-0 truncate">{i + 1}. {r.team}</div>
+              <div className="text-neutral-400 tabular-nums shrink-0">{r.matchWon}W</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+})()}
             </div>
           )
         })}
