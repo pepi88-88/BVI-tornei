@@ -989,8 +989,23 @@ const lettersReal = useMemo(() => {
 
 // size di un girone (preferisci meta.capacity; fallback assign)
 const sizeOfReal = (L: string) => {
-  const s = gmSE?.meta?.[L]?.capacity
-  if (typeof s === 'number' && s > 0) return s
+  if (!gmSE?.assign) return 0
+
+  let count = 0
+
+  for (const k of Object.keys(gmSE.assign)) {
+    const m = k.match(/^([A-Za-z]+)-(\d+)$/)
+    if (!m) continue
+
+    const letter = m[1].toUpperCase()
+
+    if (letter === L.toUpperCase()) {
+      count++
+    }
+  }
+
+  return count
+}
   if (gmSE?.assign) {
     let max = 0
     for (const k of Object.keys(gmSE.assign)) {
