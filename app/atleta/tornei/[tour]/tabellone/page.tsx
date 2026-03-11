@@ -494,15 +494,7 @@ function computeGroupRankingPublic(L: string, pub?: PublicPersist | null): TeamS
   return arr.map(({ SW, SL, QS, ...rest }) => rest)
 }
 
-  const arr = Object.values(init)
-  arr.forEach(s => { s.QP = s.PF / Math.max(1, s.PS) })
-  arr.sort((A,B) => {
-    const fA = A.finish ?? 999, fB = B.finish ?? 999
-    if (fA !== fB) return fA - fB
-    return (B.W - A.W) || (B.QP - A.QP) || (B.PF - A.PF) || A.label.localeCompare(B.label)
-  })
-  return arr
-}
+
 
 function nameFromGroupRankPublic(letter: string, pos: number, pub?: PublicPersist | null): string | undefined {
   const L = String(letter || '').toUpperCase()
