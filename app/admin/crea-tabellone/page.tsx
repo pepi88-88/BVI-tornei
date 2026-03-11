@@ -989,37 +989,26 @@ const lettersReal = useMemo(() => {
 
 // size di un girone (preferisci meta.capacity; fallback assign)
 const sizeOfReal = (L: string) => {
+  const cap = gmSE?.meta?.[L]?.capacity
+  if (cap && cap > 0) return cap
+
   if (!gmSE?.assign) return 0
 
-  let count = 0
-
+  let max = 0
   for (const k of Object.keys(gmSE.assign)) {
     const m = k.match(/^([A-Za-z]+)-(\d+)$/)
     if (!m) continue
 
     const letter = m[1].toUpperCase()
+    const slot = Number(m[2] || 0)
 
-    if (letter === L.toUpperCase()) {
-      count++
+    if (letter === L.toUpperCase() && slot > max) {
+      max = slot
     }
   }
 
-  return count
+  return max
 }
-  if (gmSE?.assign) {
-    let max = 0
-    for (const k of Object.keys(gmSE.assign)) {
-      const m = k.match(/^([A-Za-z]+)-(\d+)$/)
-      if (m && m[1].toUpperCase() === L.toUpperCase()) {
-        const slot = Number(m[2] || 0)
-        if (slot > max) max = slot
-      }
-    }
-    if (max > 0) return max
-  }
-  return 0
-}
-
 // codici reali (A1..An…) limitati al groupsCount
 const realGironiCodes = useMemo(() => {
   const metaArr = lettersReal.map(L => ({ key: L, size: sizeOfReal(L) })).filter(g => g.size > 0)
