@@ -331,7 +331,7 @@ function computeGroupRankingPublic(L: string, pub?: PublicPersist | null): TeamS
   }
 
   const headToHeadWinner = (slotX: number, slotY: number): number | undefined => {
-    const pairs = rr(cap)
+    const pairs = rrPairs(cap)
     for (let matchIdx = 0; matchIdx < pairs.length; matchIdx++) {
       const [a, b] = pairs[matchIdx]
       const ok =
@@ -354,7 +354,7 @@ function computeGroupRankingPublic(L: string, pub?: PublicPersist | null): TeamS
       tmp[s] = { W: 0, SW: 0, SL: 0, PF: 0, PS: 0, QS: 0, QP: 0 }
     }
 
-    const pairs = rr(cap)
+    const pairs = rrPairs(cap)
     const bestOf = bestOfOfPublic(L, pub)
     const sc = pub?.scores?.[L] ?? []
 
@@ -454,7 +454,7 @@ function computeGroupRankingPublic(L: string, pub?: PublicPersist | null): TeamS
   }
 
   // round robin classico
-  const pairs = rr(cap)
+  const pairs = rrPairs(cap)
   pairs.forEach(([a, b], matchIdx) => apply(a, b, matchIdx))
 
   const arr = Object.values(init)
