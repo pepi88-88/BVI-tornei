@@ -74,7 +74,7 @@ function lastSurnames(label: string) {
 type PublicPersist = {
   assign?: Record<string, string>   // "A-1" -> "ridXYZ"
   labels?: Record<string, string>   // "ridXYZ" -> "Mario / Luca"
-  meta?:   Record<string, { capacity: number; format?: 'pool'|'ita' }>
+  meta?:   Record<string, { capacity: number; format?: 'pool'|'ita'; bestOf?: 1 | 3 }>
   scores?: Record<string, { a: string; b: string }[]>
   times?:  Record<string, string[]>
 }
@@ -205,77 +205,294 @@ function rrPairs(n: number) {
   return out
 }
 
+function bestOfOfPublic(L: string, pub?: PublicPersist | null): 1 | 3 {
+  const b = Number(pub?.meta?.[L]?.bestOf ?? 1)
+  return b === 3 ? 3 : 1
+}
+
+function setsToWinPublic(bestOf: 1 | 3) {
+  return bestOf === 3 ? 2 : 1
+}
+
+function matchWinnerFromScoresPublic(
+  L: string,
+  matchIdx: number,
+  pub?: PublicPersist | null
+): { winner?: 'A' | 'B' } {
+  const bestOf = bestOfOfPublic(L, pub)
+  const need = setsToWinPublic(bestOf)
+  const sc = pub?.scores?.[L] ?? []
+
+  let wa = 0
+  let wb = 0
+
+  for (let s = 0; s < bestOf; s++) {
+    const row = sc[matchIdx * bestOf + s]
+    const a = Number(row?.a)
+    const b = Number(row?.b)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+    if (a === b) continue
+    if (a > b) wa++
+    else wb++
+  }
+
+  if (wa >= need) return { winner: 'A' }
+  if (wb >= need) return { winner: 'B' }
+  return {}
+}
+
+function matchPointsSumPublic(
+  L: string,
+  matchIdx: number,
+  pub?: PublicPersist | null
+): { aPF: number; aPS: number; bPF: number; bPS: number } {
+  const bestOf = bestOfOfPublic(L, pub)
+  const sc = pub?.scores?.[L] ?? []
+
+  let aPF = 0, aPS = 0, bPF = 0, bPS = 0
+
+  for (let s = 0; s < bestOf; s++) {
+    const row = sc[matchIdx * bestOf + s]
+    const a = Number(row?.a)
+    const b = Number(row?.b)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+
+    aPF += a
+    aPS += b
+    bPF += b
+    bPS += a
+  }
+
+  return { aPF, aPS, bPF, bPS }
+}
 function labelBySlotPublic(L: string, slot: number, pub?: PublicPersist | null) {
   const rid = pub?.assign?.[`${L}-${slot}`]
   const raw = rid ? pub?.labels?.[rid] : undefined
   return raw ? lastSurnames(raw) : `Slot ${slot}`
 }
-
 type TeamStatPub = { slot:number; label:string; W:number; PF:number; PS:number; QP:number; finish?:number }
 
 function computeGroupRankingPublic(L: string, pub?: PublicPersist | null): TeamStatPub[] {
   if (!pub) return []
+
   const cap = Number(pub?.meta?.[L]?.capacity ?? 0)
-  const fmt = (pub?.meta?.[L]?.format ?? 'pool').toLowerCase() as 'pool'|'ita'
+  const fmt = (pub?.meta?.[L]?.format ?? 'pool').toLowerCase() as 'pool' | 'ita'
   if (cap < 2) return []
 
-  const sc = pub?.scores?.[L] ?? []
-  const init: Record<number, TeamStatPub> = {}
-  for (let s=1; s<=cap; s++) init[s] = { slot:s, label:labelBySlotPublic(L,s,pub), W:0, PF:0, PS:0, QP:0 }
+  type TeamStatPubFull = TeamStatPub & { SW: number; SL: number; QS: number }
 
-  // calendario base
-  const rows = (fmt==='pool' && cap===4)
-    ? [
-        { a:1, b:4 }, { a:2, b:3 }, // semifinali
-        { a:undefined as any, b:undefined as any }, // finale 1-2 (placeholder)
-        { a:undefined as any, b:undefined as any }, // finale 3-4 (placeholder)
-      ]
-    : rrPairs(cap).map(([a,b]) => ({ a, b }))
-
-  // applica semifinali
-  const apply = (A?:number, B?:number, i?:number) => {
-    if (!A || !B) return
-    const a = Number(sc[i!]?.a), b = Number(sc[i!]?.b)
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return
-    init[A].PF += a; init[A].PS += b
-    init[B].PF += b; init[B].PS += a
-    if (a>b) init[A].W += 1; else if (b>a) init[B].W += 1
+  const init: Record<number, TeamStatPubFull> = {}
+  for (let s = 1; s <= cap; s++) {
+    init[s] = {
+      slot: s,
+      label: labelBySlotPublic(L, s, pub),
+      W: 0,
+      PF: 0,
+      PS: 0,
+      QP: 0,
+      SW: 0,
+      SL: 0,
+      QS: 0,
+    }
   }
 
+  const apply = (slotA?: number, slotB?: number, matchIdx?: number) => {
+    if (!slotA || !slotB) return
+    const mi = matchIdx ?? 0
+
+    const pts = matchPointsSumPublic(L, mi, pub)
+    init[slotA].PF += pts.aPF
+    init[slotA].PS += pts.aPS
+    init[slotB].PF += pts.bPF
+    init[slotB].PS += pts.bPS
+
+    const bestOf = bestOfOfPublic(L, pub)
+    const sc = pub?.scores?.[L] ?? []
+
+    for (let s = 0; s < bestOf; s++) {
+      const row = sc[mi * bestOf + s]
+      const a = Number(row?.a)
+      const b = Number(row?.b)
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+      if (a === b) continue
+
+      if (a > b) {
+        init[slotA].SW += 1
+        init[slotB].SL += 1
+      } else {
+        init[slotB].SW += 1
+        init[slotA].SL += 1
+      }
+    }
+
+    const win = matchWinnerFromScoresPublic(L, mi, pub).winner
+    if (win === 'A') init[slotA].W += 1
+    else if (win === 'B') init[slotB].W += 1
+  }
+
+  const headToHeadWinner = (slotX: number, slotY: number): number | undefined => {
+    const pairs = rr(cap)
+    for (let matchIdx = 0; matchIdx < pairs.length; matchIdx++) {
+      const [a, b] = pairs[matchIdx]
+      const ok =
+        (a === slotX && b === slotY) ||
+        (a === slotY && b === slotX)
+
+      if (!ok) continue
+
+      const w = matchWinnerFromScoresPublic(L, matchIdx, pub).winner
+      if (!w) return undefined
+      return w === 'A' ? a : b
+    }
+    return undefined
+  }
+
+  const miniStatsAmong = (slots: number[]) => {
+    const setSlots = new Set(slots)
+    const tmp: Record<number, { W: number; SW: number; SL: number; PF: number; PS: number; QS: number; QP: number }> = {}
+    for (const s of slots) {
+      tmp[s] = { W: 0, SW: 0, SL: 0, PF: 0, PS: 0, QS: 0, QP: 0 }
+    }
+
+    const pairs = rr(cap)
+    const bestOf = bestOfOfPublic(L, pub)
+    const sc = pub?.scores?.[L] ?? []
+
+    for (let matchIdx = 0; matchIdx < pairs.length; matchIdx++) {
+      const [a, b] = pairs[matchIdx]
+      if (!setSlots.has(a) || !setSlots.has(b)) continue
+
+      for (let si = 0; si < bestOf; si++) {
+        const row = sc[matchIdx * bestOf + si]
+        const va = Number(row?.a)
+        const vb = Number(row?.b)
+        if (!Number.isFinite(va) || !Number.isFinite(vb)) continue
+
+        tmp[a].PF += va
+        tmp[a].PS += vb
+        tmp[b].PF += vb
+        tmp[b].PS += va
+
+        if (va === vb) continue
+        if (va > vb) {
+          tmp[a].SW += 1
+          tmp[b].SL += 1
+        } else {
+          tmp[b].SW += 1
+          tmp[a].SL += 1
+        }
+      }
+
+      const w = matchWinnerFromScoresPublic(L, matchIdx, pub).winner
+      if (w === 'A') tmp[a].W += 1
+      else if (w === 'B') tmp[b].W += 1
+    }
+
+    for (const s of slots) {
+      tmp[s].QS = tmp[s].SW / Math.max(1, tmp[s].SL)
+      tmp[s].QP = tmp[s].PF / Math.max(1, tmp[s].PS)
+    }
+
+    return tmp
+  }
+
+  // accumulo statistiche match
   if (fmt === 'pool' && cap === 4) {
-    // 1) Semifinali
-    apply(1, 4, 0) // S1 vs S4
-    apply(2, 3, 1) // S2 vs S3
+    apply(1, 4, 0)
+    apply(2, 3, 1)
 
-    const s0a = Number(sc[0]?.a), s0b = Number(sc[0]?.b)
-    const s1a = Number(sc[1]?.a), s1b = Number(sc[1]?.b)
+    const s1: [number, number] = [1, 4]
+    const s2: [number, number] = [2, 3]
 
-    const w1 = (s0a > s0b) ? 1 : 4
-    const w2 = (s1a > s1b) ? 2 : 3
-    const l1 = (w1 === 1) ? 4 : 1
-    const l2 = (w2 === 2) ? 3 : 2
+    const w1 = matchWinnerFromScoresPublic(L, 0, pub).winner
+    const w2 = matchWinnerFromScoresPublic(L, 1, pub).winner
 
-    // 2) Finali: contano sia per PF/PS/W che per la posizione finale
-    // finale 1°-2°
-    if (Number.isFinite(Number(sc[2]?.a)) && Number.isFinite(Number(sc[2]?.b))) {
-      apply(w1, w2, 2) // aggiunge PF/PS/W anche da questa partita
-      const a = Number(sc[2].a), b = Number(sc[2].b)
-      init[w1].finish = a > b ? 1 : 2
-      init[w2].finish = a > b ? 2 : 1
+    const wSlot1 = w1 ? (w1 === 'A' ? s1[0] : s1[1]) : undefined
+    const lSlot1 = w1 ? (w1 === 'A' ? s1[1] : s1[0]) : undefined
+    const wSlot2 = w2 ? (w2 === 'A' ? s2[0] : s2[1]) : undefined
+    const lSlot2 = w2 ? (w2 === 'A' ? s2[1] : s2[0]) : undefined
+
+    if (wSlot1 && wSlot2) {
+      apply(wSlot1, wSlot2, 2)
+      const wf = matchWinnerFromScoresPublic(L, 2, pub).winner
+      if (wf) {
+        const first = wf === 'A' ? wSlot1 : wSlot2
+        const second = wf === 'A' ? wSlot2 : wSlot1
+        init[first].finish = 1
+        init[second].finish = 2
+      }
     }
 
-    // finale 3°-4°
-    if (Number.isFinite(Number(sc[3]?.a)) && Number.isFinite(Number(sc[3]?.b))) {
-      apply(l1, l2, 3) // idem per la finale 3/4 posto
-      const a = Number(sc[3].a), b = Number(sc[3].b)
-      init[l1].finish = a > b ? 3 : 4
-      init[l2].finish = a > b ? 4 : 3
+    if (lSlot1 && lSlot2) {
+      apply(lSlot1, lSlot2, 3)
+      const wl = matchWinnerFromScoresPublic(L, 3, pub).winner
+      if (wl) {
+        const third = wl === 'A' ? lSlot1 : lSlot2
+        const fourth = wl === 'A' ? lSlot2 : lSlot1
+        init[third].finish = 3
+        init[fourth].finish = 4
+      }
     }
-  } else {
-    // round robin classico (già ok)
-    rows.forEach((r, i) => apply(r.a, r.b, i))
+
+    const arr = Object.values(init)
+    for (const s of arr) {
+      s.QP = s.PF / Math.max(1, s.PS)
+      s.QS = s.SW / Math.max(1, s.SL)
+    }
+
+    arr.sort((A, B) => {
+      const fA = A.finish ?? 999
+      const fB = B.finish ?? 999
+      if (fA !== fB) return fA - fB
+      if (B.W !== A.W) return B.W - A.W
+      if (B.QP !== A.QP) return B.QP - A.QP
+      if (B.PF !== A.PF) return B.PF - A.PF
+      return A.slot - B.slot
+    })
+
+    return arr.map(({ SW, SL, QS, ...rest }) => rest)
   }
 
+  // round robin classico
+  const pairs = rr(cap)
+  pairs.forEach(([a, b], matchIdx) => apply(a, b, matchIdx))
+
+  const arr = Object.values(init)
+  for (const s of arr) {
+    s.QP = s.PF / Math.max(1, s.PS)
+    s.QS = s.SW / Math.max(1, s.SL)
+  }
+
+  arr.sort((A, B) => {
+    if (B.W !== A.W) return B.W - A.W
+
+    const tiedSlots = arr.filter(x => x.W === A.W).map(x => x.slot)
+
+    if (tiedSlots.length === 2) {
+      const w = headToHeadWinner(A.slot, B.slot)
+      if (w === A.slot) return -1
+      if (w === B.slot) return 1
+    } else if (tiedSlots.length >= 3) {
+      const ms = miniStatsAmong(tiedSlots)
+      const a = ms[A.slot]
+      const b = ms[B.slot]
+      if (a && b) {
+        if (b.W !== a.W) return b.W - a.W
+        if (b.QS !== a.QS) return b.QS - a.QS
+        if (b.QP !== a.QP) return b.QP - a.QP
+        if (b.PF !== a.PF) return b.PF - a.PF
+      }
+    }
+
+    if (B.QS !== A.QS) return B.QS - A.QS
+    if (B.QP !== A.QP) return B.QP - A.QP
+    if (B.PF !== A.PF) return B.PF - A.PF
+
+    return A.slot - B.slot
+  })
+
+  return arr.map(({ SW, SL, QS, ...rest }) => rest)
+}
 
   const arr = Object.values(init)
   arr.forEach(s => { s.QP = s.PF / Math.max(1, s.PS) })
