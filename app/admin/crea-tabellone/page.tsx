@@ -1023,15 +1023,14 @@ const realGironiCodes = useMemo(() => {
   const gironiOps = realGironiCodes
 
    // Avulsa: preferisci quanti sono realmente assegnati; poi snapshot; poi tappaSize
-const gmAssignedCount = gmSE ? new Set(Object.values(gmSE.assign || {})).size : 0
-const snapAvulsaCount = loadAvulsaFromSnapshot(tourId, tId).length
 const realGironiCount = realGironiCodes.length
+const snapAvulsaCount = loadAvulsaFromSnapshot(tourId, tId).length
 
 // priorità:
 // 1) snapshot avulsa se esiste
 // 2) squadre realmente assegnate nei gironi
 // 3) codici gironi reali derivati da meta/groupsCount
-const avCount = snapAvulsaCount || gmAssignedCount || realGironiCount
+const avCount = snapAvulsaCount || realGironiCount
 
 const avulsaOps = Array.from(
   { length: Math.max(0, avCount) },
