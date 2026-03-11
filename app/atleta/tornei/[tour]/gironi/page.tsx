@@ -14,7 +14,7 @@ const COLORS: Record<string, string> = {
 const colorFor = (L: string) => COLORS[L] ?? '#334155'
 
 /* === tipi === */
-type Meta   = { capacity: number; format: 'pool'|'ita' }
+type Meta = { capacity: number; format: 'pool' | 'ita'; bestOf?: 1 | 3 }
 type Score  = { a?: string|number; b?: string|number }
 type Persist = {
   groupsCount: number
@@ -26,6 +26,14 @@ type Persist = {
   labels: Record<string, string>
 }
 type PublicState = { is_public: boolean; state?: Persist | null }
+type ScheduleRow = {
+  key: string
+  t1: string
+  t2: string
+  setNo: number
+  matchIdx: number
+  scoreIdx: number
+}
 
 /* === round-robin helpers === */
 function rr(n: number){
@@ -44,25 +52,108 @@ function labelBySlot(data: Persist, L:string, slot:number){
   const rid = data?.assign?.[`${L}-${slot}`]
   return rid ? (data?.labels?.[rid] ?? `Slot ${slot}`) : `Slot ${slot}`
 }
+function bestOfOf(data: Persist, L: string): 1 | 3 {
+  return Number(data?.meta?.[L]?.bestOf) === 3 ? 3 : 1
+}
 
-function scheduleRows(L:string, data: Persist){
-  const m = data?.meta?.[L] ?? {capacity:0, format:'pool' as const}
+function setsToWin(bestOf: 1 | 3) {
+  return bestOf === 3 ? 2 : 1
+}
+
+function matchWinnerFromScoresPublic(L: string, matchIdx: number, data: Persist): { winner?: 'A' | 'B' } {
+  const bestOf = bestOfOf(data, L)
+  const need = setsToWin(bestOf)
+  const sc = data?.scores?.[L] ?? []
+
+  let wa = 0
+  let wb = 0
+
+  for (let s = 0; s < bestOf; s++) {
+    const row = sc[matchIdx * bestOf + s]
+    const a = Number(row?.a)
+    const b = Number(row?.b)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+    if (a === b) continue
+    if (a > b) wa++
+    else wb++
+  }
+
+  if (wa >= need) return { winner: 'A' }
+  if (wb >= need) return { winner: 'B' }
+  return {}
+}
+function scheduleRows(L: string, data: Persist): ScheduleRow[] {
+  const m = data?.meta?.[L] ?? { capacity: 0, format: 'pool' as const }
   const cap = m.capacity ?? 0
-  if (cap < 2) return [] as {t1:string,t2:string}[]
+  const bestOf = bestOfOf(data, L)
+
+  if (cap < 2) return []
+
+  const explodeMatch = (
+    base: { key: string; t1: string; t2: string },
+    matchIdx: number
+  ): ScheduleRow[] => {
+    return Array.from({ length: bestOf }, (_, si) => ({
+      ...base,
+      key: `${base.key}-S${si + 1}`,
+      setNo: si + 1,
+      matchIdx,
+      scoreIdx: matchIdx * bestOf + si,
+    }))
+  }
 
   // Pool 4 con semifinali/finali
-  if (m.format === 'pool' && cap === 4){
-    const p = { r1:[[1,4],[2,3]] as Array<[number,number]> }
+  if (m.format === 'pool' && cap === 4) {
+    const p = { r1: [[1, 4], [2, 3]] as Array<[number, number]> }
+
+    const m0 = {
+      key: 'G1',
+      t1: labelBySlot(data, L, p.r1[0][0]),
+      t2: labelBySlot(data, L, p.r1[0][1]),
+    }
+    const m1 = {
+      key: 'G2',
+      t1: labelBySlot(data, L, p.r1[1][0]),
+      t2: labelBySlot(data, L, p.r1[1][1]),
+    }
+
+    const w0 = matchWinnerFromScoresPublic(L, 0, data).winner
+    const w1 = matchWinnerFromScoresPublic(L, 1, data).winner
+
+    const wSlot0 = w0 ? (w0 === 'A' ? p.r1[0][0] : p.r1[0][1]) : undefined
+    const lSlot0 = w0 ? (w0 === 'A' ? p.r1[0][1] : p.r1[0][0]) : undefined
+    const wSlot1 = w1 ? (w1 === 'A' ? p.r1[1][0] : p.r1[1][1]) : undefined
+    const lSlot1 = w1 ? (w1 === 'A' ? p.r1[1][1] : p.r1[1][0]) : undefined
+
+    const m2 = {
+      key: 'F12',
+      t1: wSlot0 ? labelBySlot(data, L, wSlot0) : 'Vincente G1',
+      t2: wSlot1 ? labelBySlot(data, L, wSlot1) : 'Vincente G2',
+    }
+    const m3 = {
+      key: 'F34',
+      t1: lSlot0 ? labelBySlot(data, L, lSlot0) : 'Perdente G1',
+      t2: lSlot1 ? labelBySlot(data, L, lSlot1) : 'Perdente G2',
+    }
+
     return [
-      { t1: labelBySlot(data,L,p.r1[0][0]), t2: labelBySlot(data,L,p.r1[0][1]) },
-      { t1: labelBySlot(data,L,p.r1[1][0]), t2: labelBySlot(data,L,p.r1[1][1]) },
-      { t1: 'Vincente G1', t2: 'Vincente G2' },
-      { t1: 'Perdente G1', t2: 'Perdente G2' },
+      ...explodeMatch(m0, 0),
+      ...explodeMatch(m1, 1),
+      ...explodeMatch(m2, 2),
+      ...explodeMatch(m3, 3),
     ]
   }
 
-  // RR normale (max 6 per coerenza UI)
-  return rr(Math.min(cap,6)).map(([a,b])=>({t1:labelBySlot(data,L,a), t2:labelBySlot(data,L,b)}))
+  // RR normale
+  const base = rr(Math.min(cap, 6)).map(([a, b], i) => ({
+    key: `R${i + 1}`,
+    t1: labelBySlot(data, L, a),
+    t2: labelBySlot(data, L, b),
+  }))
+
+  const out: ScheduleRow[] = []
+  base.forEach((m, matchIdx) => out.push(...explodeMatch(m, matchIdx)))
+  return out
 }
 
 // --- Pool4: mapping G1/G2 ---
@@ -76,28 +167,18 @@ function resolvePoolToken(L: string, token: string, data: Persist): string {
   const m = token.match(/^(Vincente|Perdente)\s+G([12])$/i)
   if (!m) return token
 
-  const outcome = m[1].toLowerCase() as 'vincente'|'perdente'
-  const gIdx = Number(m[2]) - 1               // 0 per G1, 1 per G2
-  const [slotA, slotB] = poolPairFor(gIdx)    // [1,4] o [2,3]
+  const outcome = m[1].toLowerCase() as 'vincente' | 'perdente'
+  const gIdx = Number(m[2]) - 1
+  const [slotA, slotB] = poolPairFor(gIdx)
   const nameA = labelBySlot(data, L, slotA)
   const nameB = labelBySlot(data, L, slotB)
 
-  const sc = data?.scores?.[L]?.[gIdx]
-  const aRaw = sc?.a
-  const bRaw = sc?.b
+  const w = matchWinnerFromScoresPublic(L, gIdx, data).winner
+  if (!w) return token
 
-  const a = Number(aRaw)
-  const b = Number(bRaw)
-  const hasA = aRaw !== '' && aRaw !== null && aRaw !== undefined && Number.isFinite(a)
-  const hasB = bRaw !== '' && bRaw !== null && bRaw !== undefined && Number.isFinite(b)
-
-  // senza punteggi o con pareggio → lascia il token letterale
-  if (!hasA || !hasB || a === b) return token
-
-  if (outcome === 'vincente') return a > b ? nameA : nameB
-  return a > b ? nameB : nameA
+  if (outcome === 'vincente') return w === 'A' ? nameA : nameB
+  return w === 'A' ? nameB : nameA
 }
-
 // --- Wrapper da usare in render ---
 function displayTeamLabel(L: string, raw: string, data: Persist): string {
   return /^(Vincente|Perdente)\s+G[12]$/i.test(raw)
@@ -244,35 +325,51 @@ export default function AthleteGironiPage(){
                             <div className="inline-block min-w-[640px] w-full">
                               <div className="space-y-2">
                                 {rows.length === 0 ? (
-                                  <div className="text-xs text-neutral-500">Nessuna partita.</div>
-                                ) : rows.map((r, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="grid items-center whitespace-nowrap"
-                                    style={{
-                                      gridTemplateColumns:
-                                        '70px minmax(170px,1fr) 44px 18px 44px minmax(170px,1fr)',
-                                      columnGap: '.45rem',
-                                    }}
-                                  >
-                                    <div className="input h-8 pl-1 pr-0 text-sm tabular-nums">
-                                      {(data.times?.[L]?.[idx] ?? '') || '—'}
-                                    </div>
-                                    <div className="min-w-0 truncate text-sm text-right">
-                                      {displayTeamLabel(L, r.t1, data)}
-                                    </div>
-                                    <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
-                                      {data.scores?.[L]?.[idx]?.a ?? ''}
-                                    </div>
-                                    <div className="w-5 text-center text-[12px] text-neutral-400">vs</div>
-                                    <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
-                                      {data.scores?.[L]?.[idx]?.b ?? ''}
-                                    </div>
-                                    <div className="min-w-0 truncate text-sm pl-1">
-                                      {displayTeamLabel(L, r.t2, data)}
-                                    </div>
-                                  </div>
-                                ))}
+  <div className="text-xs text-neutral-500">Nessuna partita.</div>
+) : rows.map((r, idx) => {
+  const showHeader = r.setNo === 1
+  const prev = idx > 0 ? rows[idx - 1] : null
+  const newMatch = !prev || prev.matchIdx !== r.matchIdx
+
+  return (
+    <div
+      key={r.key}
+      className={[
+        'grid items-center whitespace-nowrap',
+        newMatch ? 'border-t border-neutral-800 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0' : ''
+      ].join(' ')}
+      style={{
+        gridTemplateColumns:
+          '70px minmax(170px,1fr) 44px 18px 44px minmax(170px,1fr)',
+        columnGap: '.45rem',
+      }}
+    >
+      <div className="input h-8 pl-1 pr-0 text-sm tabular-nums">
+        {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
+      </div>
+
+      <div className="min-w-0 truncate text-sm text-right">
+        {showHeader ? displayTeamLabel(L, r.t1, data) : ''}
+      </div>
+
+      <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
+        {data.scores?.[L]?.[r.scoreIdx]?.a ?? ''}
+      </div>
+
+      <div className="w-5 text-center text-[12px] text-neutral-400">
+        {showHeader ? 'vs' : ''}
+      </div>
+
+      <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
+        {data.scores?.[L]?.[r.scoreIdx]?.b ?? ''}
+      </div>
+
+      <div className="min-w-0 truncate text-sm pl-1">
+        {showHeader ? displayTeamLabel(L, r.t2, data) : ''}
+      </div>
+    </div>
+  )
+})}
                               </div>
                             </div>
                           </div>
@@ -331,35 +428,51 @@ export default function AthleteGironiPage(){
               <div className="text-xs opacity-90">Campo {data.gField?.[L] ?? '—'}</div>
             </div>
             <div className="p-3 space-y-2">
-              {rows.length === 0 ? (
-                <div className="text-xs text-neutral-500">Nessuna partita.</div>
-              ) : rows.map((r, idx) => (
-                <div
-                  key={idx}
-                  className="grid items-center"
-                  style={{
-                    gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
-                    columnGap: '.35rem',
-                  }}
-                >
-                  <div className="input h-8 pl-1 pr-0 text-sm tabular-nums">
-                    {(data.times?.[L]?.[idx] ?? '') || '—'}
-                  </div>
-                  <div className="min-w-0 truncate whitespace-nowrap text-sm text-right">
-                    {displayTeamLabel(L, r.t1, data)}
-                  </div>
-                  <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
-                    {data.scores?.[L]?.[idx]?.a ?? ''}
-                  </div>
-                  <div className="w-6 text-center text-[13px] text-neutral-400">vs</div>
-                  <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
-                    {data.scores?.[L]?.[idx]?.b ?? ''}
-                  </div>
-                  <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">
-                    {displayTeamLabel(L, r.t2, data)}
-                  </div>
-                </div>
-              ))}
+             {rows.length === 0 ? (
+  <div className="text-xs text-neutral-500">Nessuna partita.</div>
+) : rows.map((r, idx) => {
+  const showHeader = r.setNo === 1
+  const prev = idx > 0 ? rows[idx - 1] : null
+  const newMatch = !prev || prev.matchIdx !== r.matchIdx
+
+  return (
+    <div
+      key={r.key}
+      className={[
+        'grid items-center',
+        newMatch ? 'border-t border-neutral-800 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0' : ''
+      ].join(' ')}
+      style={{
+        gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
+        columnGap: '.35rem',
+      }}
+    >
+      <div className="input h-8 pl-1 pr-0 text-sm tabular-nums">
+        {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
+      </div>
+
+      <div className="min-w-0 truncate whitespace-nowrap text-sm text-right">
+        {showHeader ? displayTeamLabel(L, r.t1, data) : ''}
+      </div>
+
+      <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
+        {data.scores?.[L]?.[r.scoreIdx]?.a ?? ''}
+      </div>
+
+      <div className="w-6 text-center text-[13px] text-neutral-400">
+        {showHeader ? 'vs' : ''}
+      </div>
+
+      <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
+        {data.scores?.[L]?.[r.scoreIdx]?.b ?? ''}
+      </div>
+
+      <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">
+        {showHeader ? displayTeamLabel(L, r.t2, data) : ''}
+      </div>
+    </div>
+  )
+})}
             </div>
           </div>
         </div>
