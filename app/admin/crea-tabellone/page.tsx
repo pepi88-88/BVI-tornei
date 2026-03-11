@@ -1021,9 +1021,18 @@ const realGironiCodes = useMemo(() => {
    // Avulsa: preferisci quanti sono realmente assegnati; poi snapshot; poi tappaSize
 const gmAssignedCount = gmSE ? new Set(Object.values(gmSE.assign || {})).size : 0
 const snapAvulsaCount = loadAvulsaFromSnapshot(tourId, tId).length
-const avCount = gmAssignedCount || snapAvulsaCount || tappaSize
-const avulsaOps = Array.from({ length: Math.max(0, avCount) }, (_, i) => String(i + 1))
+const realGironiCount = realGironiCodes.length
 
+// priorità:
+// 1) snapshot avulsa se esiste
+// 2) squadre realmente assegnate nei gironi
+// 3) codici gironi reali derivati da meta/groupsCount
+const avCount = snapAvulsaCount || gmAssignedCount || realGironiCount
+
+const avulsaOps = Array.from(
+  { length: Math.max(0, avCount) },
+  (_, i) => String(i + 1)
+)
   // Eliminati
   const loser = active?.fromTableId ? brackets.find(b => b.id === active.fromTableId) : null
   const mCount = loser ? nextPow2(loser.nTeams) / 2 : 0
@@ -1183,7 +1192,8 @@ return (
       }
     }
 
-    const av = Array.from({ length: Math.max(0, tappaSize) }, (_, i) => `${i + 1}`)
+   const avCount = groupsMeta.reduce((sum, g) => sum + g.size, 0)
+const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
     saveSources(tourId, tId, {
       gironi: groupsMeta,
