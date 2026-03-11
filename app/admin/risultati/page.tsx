@@ -829,58 +829,59 @@ function MobileGroupsCarousel({
                   {rows.length === 0 ? (
                     <div className="text-sm text-neutral-500">Imposta i gironi in /admin/gironi.</div>
                   ) : (
-                    rows.map((r, ridx) => (
-                      <div
-                        key={`${tId}-${L}-${r.key}`}
-                        className="grid items-center rounded-xl border border-neutral-800 bg-neutral-900/60 p-3"
-                        style={{
-                          // colonne più larghe: input punteggi “tap friendly”
-                          gridTemplateColumns: '110px minmax(0,1fr) 64px 18px 64px minmax(0,1fr)',
-                          columnGap: '.5rem',
-                        }}
-                      >
-                       {r.setNo === 1 ? (
-  <input
-    type="time"
-    className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
-    value={(times[L] ?? [])[r.matchIdx] ?? ''}
-    onChange={(e) => setTime(L, r.matchIdx, e.target.value)}
-  />
-) : (
-  <div className="w-[92px] h-8" />
-)}
+                   rows.map((r, ridx) => (
+  <div
+    key={`${tId}-${L}-${r.key}`}
+    className={`grid items-center rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 ${
+      r.setNo === 1 && ridx > 0 ? 'mt-3' : ''
+    }`}
+    style={{
+      gridTemplateColumns: '110px minmax(0,1fr) 64px 18px 64px minmax(0,1fr)',
+      columnGap: '.5rem',
+    }}
+  >
+    {r.setNo === 1 ? (
+      <input
+        type="time"
+        className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
+        value={(times[L] ?? [])[r.matchIdx] ?? ''}
+        onChange={(e) => setTime(L, r.matchIdx, e.target.value)}
+      />
+    ) : (
+      <div className="w-[92px] h-8" />
+    )}
 
-                        <div className="min-w-0 truncate text-[15px] text-right pr-1 font-medium">
-                          {r.labelA}
-                        </div>
+    <div className="min-w-0 truncate text-[15px] text-right pr-1 font-medium">
+      {r.setNo === 1 ? r.labelA : ''}
+    </div>
 
-                        <input
-                          className="input h-11 w-16 px-2 text-base text-center"
-                          inputMode="numeric"
-                          value={scores[L]?.[r.scoreIdx]?.a ?? ''}
-                          onChange={(e) => {
-                            const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                            setScore(L, r.scoreIdx, 'a', v)
-                          }}
-                        />
+    <input
+      className="input h-11 w-16 px-2 text-base text-center"
+      inputMode="numeric"
+      value={scores[L]?.[r.scoreIdx]?.a ?? ''}
+      onChange={(e) => {
+        const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+        setScore(L, r.scoreIdx, 'a', v)
+      }}
+    />
 
-                        <div className="text-center text-[15px] opacity-60">–</div>
+    <div className="text-center text-[15px] opacity-60">–</div>
 
-                        <input
-                          className="input h-11 w-16 px-2 text-base text-center"
-                          inputMode="numeric"
-                          value={scores[L]?.[r.scoreIdx]?.b ?? ''}
-                          onChange={(e) => {
-                            const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                            setScore(L, r.scoreIdx, 'b', v)
-                          }}
-                        />
+    <input
+      className="input h-11 w-16 px-2 text-base text-center"
+      inputMode="numeric"
+      value={scores[L]?.[r.scoreIdx]?.b ?? ''}
+      onChange={(e) => {
+        const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+        setScore(L, r.scoreIdx, 'b', v)
+      }}
+    />
 
-                        <div className="min-w-0 truncate text-[15px] pl-1 font-medium">
-                          {r.labelB}
-                        </div>
-                      </div>
-                    ))
+    <div className="min-w-0 truncate text-[15px] pl-1 font-medium">
+      {r.setNo === 1 ? r.labelB : ''}
+    </div>
+  </div>
+))
                   )}
                 </div>
               </div>
@@ -1764,47 +1765,58 @@ return (
                 <div className="text-xs text-neutral-500">Imposta i gironi in /admin/gironi.</div>
               ) : (
                 rows.map((r, ridx) => (
-                  <div
-                    key={`${tId}-${L}-${r.key}`}
-                    className="grid items-center"
-                    style={{
-                      gridTemplateColumns: '96px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
-                      columnGap: '.35rem',
-                    }}
-                  >
-                   {r.setNo === 1 ? (
-  <input
-    type="time"
-    className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
-    value={(times[L] ?? [])[r.matchIdx] ?? ''}
-    onChange={(e) => setTime(L, r.matchIdx, e.target.value)}
-  />
-) : (
-  <div className="w-[92px] h-8" />
-)}
-                    <div className="min-w-0 truncate text-sm text-right pr-0.5">{r.labelA}</div>
-                    <input
-                      className="input h-8 w-12 px-1 text-sm text-center"
-                      inputMode="numeric"
-                      value={scores[L]?.[r.scoreIdx]?.a ?? ''}
-                      onChange={(e) => {
-                        const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                        setScore(L, r.scoreIdx, 'a', v)
-                      }}
-                    />
-                    <div className="w-6 text-center text-[13px] text-neutral-400">vs</div>
-                    <input
-                      className="input h-8 w-12 px-1 text-sm text-center"
-                      inputMode="numeric"
-                      value={scores[L]?.[r.scoreIdx]?.b ?? ''}
-                      onChange={(e) => {
-                        const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                        setScore(L, r.scoreIdx, 'b', v)
-                      }}
-                    />
-                    <div className="min-w-0 truncate text-sm pl-1">{r.labelB}</div>
-                  </div>
-                ))
+  <div
+    key={`${tId}-${L}-${r.key}`}
+    className={`grid items-center ${
+      r.setNo === 1 && ridx > 0 ? 'border-t border-neutral-800 pt-2 mt-2' : ''
+    }`}
+    style={{
+      gridTemplateColumns: '96px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
+      columnGap: '.35rem',
+    }}
+  >
+    {r.setNo === 1 ? (
+      <input
+        type="time"
+        className="input h-8 pl-1 pr-0 text-sm text-white w-[92px] tabular-nums"
+        value={(times[L] ?? [])[r.matchIdx] ?? ''}
+        onChange={(e) => setTime(L, r.matchIdx, e.target.value)}
+      />
+    ) : (
+      <div className="w-[92px] h-8" />
+    )}
+
+    <div className="min-w-0 truncate text-sm text-right pr-0.5">
+      {r.setNo === 1 ? r.labelA : ''}
+    </div>
+
+    <input
+      className="input h-8 w-12 px-1 text-sm text-center"
+      inputMode="numeric"
+      value={scores[L]?.[r.scoreIdx]?.a ?? ''}
+      onChange={(e) => {
+        const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+        setScore(L, r.scoreIdx, 'a', v)
+      }}
+    />
+
+    <div className="w-6 text-center text-[13px] text-neutral-400">vs</div>
+
+    <input
+      className="input h-8 w-12 px-1 text-sm text-center"
+      inputMode="numeric"
+      value={scores[L]?.[r.scoreIdx]?.b ?? ''}
+      onChange={(e) => {
+        const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+        setScore(L, r.scoreIdx, 'b', v)
+      }}
+    />
+
+    <div className="min-w-0 truncate text-sm pl-1">
+      {r.setNo === 1 ? r.labelB : ''}
+    </div>
+  </div>
+))
               )}
             </div>
           </div>
