@@ -66,7 +66,7 @@ const pool4 = () => ({
 type Meta = { capacity: number; format: 'pool' | 'ita'; bestOf?: 1 | 3 }
 type PersistServer = {
   groupsCount: number;
-  meta: Record<string, { capacity: number; format: 'pool'|'ita' }>;
+  meta: Record<string, { capacity: number; format: 'pool'|'ita'; bestOf?: 1 | 3 }>;
   assign: Record<string, string>;
   times: Record<string, string[]>;
   gField: Record<string, string>;
@@ -656,102 +656,113 @@ function commitTimeUncontrolled(
                 </div>
               </div>
 
-              {/* Elenco partite */}
-              <div className="p-3 space-y-2">
+                         {/* Elenco partite */}
+              <div className="p-3 space-y-0">
                 {rows.length === 0 ? (
                   <div className="text-xs text-neutral-500">Imposta # squadre e formato.</div>
                 ) : (
-                  rows.map((r, idx) => (
-                    <div key={idx}>
-                      {r.sep && <div className="h-px bg-neutral-800 my-2" />}
+                  rows.map((r, idx) => {
+                    const isFirstSet = r.setNo === 1
+                    const isLastSetOfMatch = r.setNo === (meta[L]?.bestOf ?? 1)
 
-                      <div
-                        className="grid items-center"
-                        style={{
-                          gridTemplateColumns: '72px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
-                          columnGap: '.35rem',
-                        }}
-                      >
-                        {/* Ora (uncontrolled + normalizzazione) */}
-                       {r.setNo === 1 ? (
-  <input
-    type="text"
-    inputMode="numeric"
-    placeholder="hh:mm"
-    className="input h-8 pl-1 pr-0 text-sm text-white tabular-nums shrink-0 w-[78px]"
-    defaultValue={(times[L] ?? [])[r.matchIdx] ?? ''}   // <-- matchIdx (NON idx)
-    onBlur={(e) => commitTimeUncontrolled(L, r.matchIdx, e.currentTarget, setTime)} // <-- matchIdx
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        ;(e.currentTarget as HTMLInputElement).blur()
-      }
-    }}
-    title="Ora"
-  />
-) : (
-  <div className="w-[78px] h-8" />  // placeholder vuoto (stessa larghezza)
-)}
+                    return (
+                      <div key={idx}>
+                        {r.sep && <div className="h-px bg-neutral-800 my-3" />}
 
-                        {/* Squadra 1 */}
-                       <div className="min-w-0 truncate whitespace-nowrap text-sm text-right pr-0.1">
-  {r.setNo === 1 ? r.t1 : `SET ${r.setNo}`}
-</div>
-
-                        {/* Punteggio A */}
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="\d*"
-                          maxLength={2}
-                          defaultValue={(scores[L]?.[r.scoreIdx]?.a ?? '')}
-                          onBlur={(e) => {
-                            const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                            setScore(L, r.scoreIdx, 'a', v)
-                            e.currentTarget.value = v
+                        <div
+                          className="grid items-center min-h-[38px]"
+                          style={{
+                            gridTemplateColumns: '86px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)',
+                            columnGap: '.35rem',
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              ;(e.currentTarget as HTMLInputElement).blur()
-                            }
-                          }}
-                          className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
-                          title="Punteggio squadra 1"
-                        />
+                        >
+                          {/* Ora */}
+                          {isFirstSet ? (
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="hh:mm"
+                              className="input h-8 pl-1 pr-0 text-sm text-white tabular-nums w-[82px]"
+                              defaultValue={(times[L] ?? [])[r.matchIdx] ?? ''}
+                              onBlur={(e) => commitTimeUncontrolled(L, r.matchIdx, e.currentTarget, setTime)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  ;(e.currentTarget as HTMLInputElement).blur()
+                                }
+                              }}
+                              title="Ora"
+                            />
+                          ) : (
+                            <div className="w-[82px] h-8" />
+                          )}
 
-                        {/* VS */}
-                        <div className="shrink-0 w-6 -mx-0.5 text-center text-[13px] text-neutral-400">vs</div>
+                          {/* Team / Set */}
+                          <div className="min-w-0 truncate text-sm text-right pr-0.5">
+                            {isFirstSet ? r.t1 : (
+                              <span className="text-neutral-400 font-medium">SET {r.setNo}</span>
+                            )}
+                          </div>
 
-                        {/* Punteggio B */}
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="\d*"
-                          maxLength={2}
-                          defaultValue={(scores[L]?.[r.scoreIdx]?.b ?? '')}
-                          onBlur={(e) => {
-                            const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
-                            setScore(L, r.scoreIdx, 'b', v)
-                            e.currentTarget.value = v
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              ;(e.currentTarget as HTMLInputElement).blur()
-                            }
-                          }}
-                          className="input h-8 w-12 px-1 text-sm text-center tabular-nums shrink-0"
-                          title="Punteggio squadra 2"
-                        />
+                          {/* Score A */}
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d*"
+                            maxLength={2}
+                            defaultValue={scores[L]?.[r.scoreIdx]?.a ?? ''}
+                            onBlur={(e) => {
+                              const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+                              setScore(L, r.scoreIdx, 'a', v)
+                              e.currentTarget.value = v
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                ;(e.currentTarget as HTMLInputElement).blur()
+                              }
+                            }}
+                            className="input h-8 w-12 px-1 text-sm text-center tabular-nums"
+                            title="Punteggio squadra 1"
+                          />
 
-                        {/* Squadra 2 */}
-                       <div className="min-w-0 truncate whitespace-nowrap text-sm pl-1">
-  {r.setNo === 1 ? r.t2 : ''}
-</div>
+                          {/* VS */}
+                          <div className="w-6 text-center text-[13px] text-neutral-400">
+                            {isFirstSet ? 'vs' : ''}
+                          </div>
+
+                          {/* Score B */}
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d*"
+                            maxLength={2}
+                            defaultValue={scores[L]?.[r.scoreIdx]?.b ?? ''}
+                            onBlur={(e) => {
+                              const v = e.currentTarget.value.replace(/\D/g, '').slice(0, 2)
+                              setScore(L, r.scoreIdx, 'b', v)
+                              e.currentTarget.value = v
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                ;(e.currentTarget as HTMLInputElement).blur()
+                              }
+                            }}
+                            className="input h-8 w-12 px-1 text-sm text-center tabular-nums"
+                            title="Punteggio squadra 2"
+                          />
+
+                          {/* Team B */}
+                          <div className="min-w-0 truncate text-sm pl-1">
+                            {isFirstSet ? r.t2 : ''}
+                          </div>
+                        </div>
+
+                        {!isLastSetOfMatch && <div className="h-1" />}
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
               {/* Classifica */}
