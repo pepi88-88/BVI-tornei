@@ -94,12 +94,12 @@ function scheduleRows(L: string, data: Persist): ScheduleRow[] {
     matchIdx: number
   ): ScheduleRow[] => {
     return Array.from({ length: bestOf }, (_, si) => ({
-      ...base,
-      key: `${base.key}-S${si + 1}`,
-      setNo: si + 1,
-      matchIdx,
-      scoreIdx: matchIdx * bestOf + si,
-    }))
+  ...base,
+  key: `${base.key}-S${si + 1}`,
+  setNo: (si + 1) as 1 | 2 | 3,
+  matchIdx,
+  scoreIdx: matchIdx * bestOf + si,
+}))
   }
 
   // Pool 4 con semifinali/finali
