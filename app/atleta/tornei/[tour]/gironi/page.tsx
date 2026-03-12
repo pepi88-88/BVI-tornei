@@ -30,7 +30,7 @@ type ScheduleRow = {
   key: string
   t1: string
   t2: string
-  setNo: number
+  setNo: 1 | 2 | 3
   matchIdx: number
   scoreIdx: number
 }
@@ -344,13 +344,13 @@ export default function AthleteGironiPage(){
         columnGap: '.45rem',
       }}
     >
-      <div className="input h-8 pl-1 pr-0 text-sm tabular-nums">
-        {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
-      </div>
+      <div className={showHeader ? 'input h-8 pl-1 pr-0 text-sm tabular-nums' : 'h-8'}>
+  {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
+</div>
 
-      <div className="min-w-0 truncate text-sm text-right">
-        {showHeader ? displayTeamLabel(L, r.t1, data) : ''}
-      </div>
+     <div className="min-w-0 truncate text-sm text-right">
+  {showHeader ? displayTeamLabel(L, r.t1, data) : `SET ${r.setNo}`}
+</div>
 
       <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
         {data.scores?.[L]?.[r.scoreIdx]?.a ?? ''}
@@ -447,9 +447,9 @@ export default function AthleteGironiPage(){
         columnGap: '.35rem',
       }}
     >
-      <div className="input h-8 pl-1 pr-0 text-sm tabular-nums">
-        {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
-      </div>
+    <div className={showHeader ? 'input h-8 pl-1 pr-0 text-sm tabular-nums' : 'h-8'}>
+  {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
+</div>
 
       <div className="min-w-0 truncate whitespace-nowrap text-sm text-right">
         {showHeader ? displayTeamLabel(L, r.t1, data) : ''}
