@@ -451,9 +451,9 @@ export default function AthleteGironiPage(){
   {showHeader ? ((data.times?.[L]?.[r.matchIdx] ?? '') || '—') : ''}
 </div>
 
-      <div className="min-w-0 truncate whitespace-nowrap text-sm text-right">
-        {showHeader ? displayTeamLabel(L, r.t1, data) : ''}
-      </div>
+    <div className="min-w-0 truncate whitespace-nowrap text-sm text-right">
+  {showHeader ? displayTeamLabel(L, r.t1, data) : `SET ${r.setNo}`}
+</div>
 
       <div className="input h-8 w-12 px-1 text-sm text-center tabular-nums">
         {data.scores?.[L]?.[r.scoreIdx]?.a ?? ''}
