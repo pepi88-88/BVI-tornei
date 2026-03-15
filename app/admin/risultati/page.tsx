@@ -1178,16 +1178,17 @@ useEffect(() => {
       const prev = (js?.state || {}) as any
 
       const next = {
-        groupsCount: prev?.groupsCount ?? store?.groupsCount ?? 0,
-        meta: prev?.meta ?? store?.meta ?? {},
-        assign: prev?.assign ?? store?.assign ?? {},
-        labels: prev?.labels ?? store?.labels ?? {},
-        gField: prev?.gField ?? {},
-        times: { ...(prev?.times || {}), ...(times || {}) },
-        scores: { ...(prev?.scores || {}), ...(scores || {}) },
-        isPublic: typeof prev?.isPublic === 'boolean' ? prev.isPublic : false,
-        groupsConfirmed: !!prev?.groupsConfirmed,
-      }
+  groupsCount: prev?.groupsCount ?? store?.groupsCount ?? 0,
+  meta: prev?.meta ?? store?.meta ?? {},
+  assign: prev?.assign ?? store?.assign ?? {},
+  labels: prev?.labels ?? store?.labels ?? {},
+  gField: prev?.gField ?? {},
+  times: { ...(prev?.times || {}), ...(times || {}) },
+  scores: { ...(prev?.scores || {}), ...(scores || {}) },
+  isPublic: typeof prev?.isPublic === 'boolean' ? prev.isPublic : false,
+  groupsConfirmed: !!prev?.groupsConfirmed,
+  regia: prev?.regia ?? { items: {} },
+}
 
       // se nel frattempo l’utente ha cambiato tappa, non salvare
       if (curTId !== tId) return
@@ -1550,11 +1551,12 @@ useEffect(() => {
       const prevWinners = Array.isArray(prev) ? {}   : (prev?.winnersById || {})
       const prevIta     = Array.isArray(prev) ? {}   : (prev?.itaScoresById || {})
 
-      const next = {
-        items: prevItems.length ? prevItems : brackets,     // fallback
-        winnersById: { ...(prevWinners || {}), ...(winnersById || {}) },
-        itaScoresById: { ...(prevIta || {}), ...(itaScoresById || {}) },
-      }
+     const next = {
+  items: prevItems.length ? prevItems : brackets,
+  winnersById: { ...(prevWinners || {}), ...(winnersById || {}) },
+  itaScoresById: { ...(prevIta || {}), ...(itaScoresById || {}) },
+  regia: prev?.regia ?? { items: {} },
+}
 
       if (curTId !== tId) return
 
