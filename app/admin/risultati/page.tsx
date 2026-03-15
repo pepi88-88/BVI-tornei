@@ -1030,16 +1030,10 @@ const labelBySlot = (L: string, slot: number) => {
   const rid = store?.assign?.[`${L}-${slot}`] ?? ''
   const raw = rid ? store?.labels?.[rid] ?? '' : ''
 
-  // 1) se il nome "crudo" esiste nei labels, uso quello
-if (raw) return raw
+  // usa solo il nome reale salvato nello stato
+  if (raw) return raw
 
-  // 2) fallback robusto: risolvi A1/B2... in cognomi brevi tramite i resolver locali
-  //    (usa i dati già in localStorage: groups_rank / classifica_avulsa)
-  const token = `${L}${slot}` // es. "A1"
-  const solved = resolveSlotBasic(token, tourId, tId) // già fa: gruppi_rank -> avulsa -> token
-  if (solved && solved !== token && solved !== '—') return solved
-
-  // 3) ultimo fallback visuale
+  // se manca davvero, mostra Slot X ma NON usare la classifica live
   return `Slot ${slot}`
 }
 
