@@ -73,6 +73,10 @@ type PersistServer = {
   scores: Record<string, { a: string; b: string }[]>;
   isPublic: boolean;
   labels: Record<string, string>;
+  groupsConfirmed?: boolean;
+  regia?: {
+    items?: Record<string, { court: number | null; sequence: number | null; status: string }>
+  };
 }
 
 
@@ -222,26 +226,42 @@ function isEmptyStateForSave(st: {
 useEffect(() => {
   if (!ready || !tId) return
 
-  const payload: PersistServer = {
-    groupsCount,
-    meta,
-    assign,
-    times,
-    gField,
-    scores,
-    isPublic,
-    labels: regMap,
-  }
-
   // 🛡️ blocca salvataggi vuoti/prematuri
   if (isEmptyStateForSave({ groupsCount, meta, assign })) return
 
+  const curTId = tId
+
   const id = setTimeout(async () => {
     try {
+      const res = await fetch(`/api/groups/state?tournament_id=${encodeURIComponent(curTId)}`, {
+        headers: { 'x-role': 'admin' },
+        cache: 'no-store',
+      })
+      const js = await res.json()
+      const prev = (js?.state || {}) as Partial<PersistServer>
+
+      const payload: PersistServer = {
+        groupsCount,
+        meta,
+        assign,
+        times,
+        gField,
+        scores,
+        isPublic,
+        labels: {
+          ...(prev?.labels || {}),
+          ...(regMap || {}),
+        },
+        groupsConfirmed: !!prev?.groupsConfirmed,
+        regia: prev?.regia ?? { items: {} },
+      }
+
+      if (curTId !== tId) return
+
       await fetch('/api/groups/state', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-role': 'admin' },
-        body: JSON.stringify({ tournament_id: tId, state: payload }),
+        body: JSON.stringify({ tournament_id: curTId, state: payload }),
       })
     } catch {}
   }, 300)
