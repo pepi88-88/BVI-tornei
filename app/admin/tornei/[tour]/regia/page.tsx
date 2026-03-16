@@ -19,7 +19,11 @@ type RegiaRow = {
 }
 
 type ViewMode = 'all' | 'live' | 'live_plus_2'
-
+type TournamentOption = {
+  id: string
+  name: string
+  date?: string
+}
 const COURTS = Array.from({ length: 10 }, (_, i) => i + 1)
 const SEQ_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1)
 
@@ -27,48 +31,64 @@ export default function RegiaPage() {
   const params = useParams()
   const searchParams = useSearchParams()
 
-  const routeTour = String(params?.tour ?? '')
-  const tournamentId = searchParams.get('tournament_id') || routeTour
+ const routeTour = String(params?.tour ?? '')
+const initialTournamentId = searchParams.get('tournament_id') || routeTour
 
   const [rows, setRows] = useState<RegiaRow[]>([])
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [drafts, setDrafts] = useState<Record<string, { court: string; sequence: string }>>({})
+const [availableTournaments, setAvailableTournaments] = useState<TournamentOption[]>([])
 
-  async function loadData() {
-    if (!tournamentId) return
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/regia/state?tournament_id=${encodeURIComponent(tournamentId)}`, {
-        headers: { 'x-role': 'admin' },
-        cache: 'no-store',
-      })
-      const json = await res.json()
-      const items: RegiaRow[] = json?.rows || []
-      setRows(items)
+const [draftTournamentA, setDraftTournamentA] = useState<string>('')
+const [draftTournamentB, setDraftTournamentB] = useState<string>('')
 
-      const nextDrafts: Record<string, { court: string; sequence: string }> = {}
-      items.forEach((r) => {
-        nextDrafts[r.key] = {
-          court: r.court == null ? '' : String(r.court),
-          sequence:
-            r.status === 'paused'
-              ? '0'
-              : r.sequence == null
-              ? ''
-              : String(r.sequence),
-        }
-      })
-      setDrafts(nextDrafts)
-    } finally {
-      setLoading(false)
-    }
+const [activeTournamentA, setActiveTournamentA] = useState<string>('')
+const [activeTournamentB, setActiveTournamentB] = useState<string>('')
+
+const STORAGE_KEY = 'regia:selectedTournaments'
+ async function loadData() {
+  const ids = [activeTournamentA, activeTournamentB].filter(Boolean)
+  if (!ids.length) return
+
+  setLoading(true)
+  try {
+    const query = ids
+      .map((id) => `tournament_id=${encodeURIComponent(id)}`)
+      .join('&')
+
+    const res = await fetch(`/api/regia/state?${query}`, {
+      headers: { 'x-role': 'admin' },
+      cache: 'no-store',
+    })
+
+    const json = await res.json()
+    const items: RegiaRow[] = json?.rows || []
+    setRows(items)
+
+    const nextDrafts: Record<string, { court: string; sequence: string }> = {}
+    items.forEach((r) => {
+      nextDrafts[r.key] = {
+        court: r.court == null ? '' : String(r.court),
+        sequence:
+          r.status === 'paused'
+            ? '0'
+            : r.sequence == null
+            ? ''
+            : String(r.sequence),
+      }
+    })
+    setDrafts(nextDrafts)
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => {
-    void loadData()
-  }, [tournamentId])
+  if (!activeTournamentA) return
+  void loadData()
+}, [activeTournamentA, activeTournamentB])
 
   function setDraft(key: string, patch: Partial<{ court: string; sequence: string }>) {
     setDrafts((prev) => ({
@@ -80,29 +100,71 @@ export default function RegiaPage() {
       },
     }))
   }
+async function loadTournamentOptions() {
+  try {
+    const res = await fetch('/api/tournaments', { cache: 'no-store' })
+    const json = await res.json()
+    const items = (json?.items || []) as TournamentOption[]
+    setAvailableTournaments(items)
+  } catch {
+    setAvailableTournaments([])
+  }
+}
+  useEffect(() => {
+  void loadTournamentOptions()
 
-  async function mutate(
-    key: string,
-    action: 'save_assignment' | 'set_live' | 'stop_live' | 'close_match',
-    extra?: { court?: number | null; sequence?: number | null }
-  ) {
-    if (!tournamentId) return
-    setSavingKey(key)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { a?: string; b?: string }
+      const a = String(parsed?.a || '')
+      const b = String(parsed?.b || '')
 
-    try {
-      const res = await fetch('/api/regia/state', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-role': 'admin',
-        },
-        body: JSON.stringify({
-          tournament_id: tournamentId,
-          action,
-          key,
-          ...extra,
-        }),
-      })
+      setDraftTournamentA(a)
+      setDraftTournamentB(b)
+      setActiveTournamentA(a)
+      setActiveTournamentB(b)
+      return
+    }
+  } catch {}
+
+  if (initialTournamentId) {
+    setDraftTournamentA(initialTournamentId)
+    setDraftTournamentB('')
+    setActiveTournamentA(initialTournamentId)
+    setActiveTournamentB('')
+  }
+}, [initialTournamentId])
+  function tournamentIdForKey(key: string) {
+  const row = rows.find((r) => r.key === key)
+  return row?.tournament_id || ''
+}
+ async function mutate(
+  key: string,
+  action: 'save_assignment' | 'set_live' | 'stop_live' | 'close_match',
+  extra?: { court?: number | null; sequence?: number | null }
+) {
+  const targetTournamentId = tournamentIdForKey(key)
+  if (!targetTournamentId) return
+
+  setSavingKey(key)
+
+  try {
+    const res = await fetch('/api/regia/state', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-role': 'admin',
+      },
+      body: JSON.stringify({
+        tournament_id: targetTournamentId,
+        action,
+        key,
+        ...extra,
+      }),
+    })
+
+   
 
       const json = await res.json()
       if (!res.ok) {
@@ -110,27 +172,47 @@ export default function RegiaPage() {
         return
       }
 
-      const items: RegiaRow[] = json?.rows || []
-      setRows(items)
-
-      const nextDrafts: Record<string, { court: string; sequence: string }> = {}
-      items.forEach((r) => {
-        nextDrafts[r.key] = {
-          court: r.court == null ? '' : String(r.court),
-          sequence:
-            r.status === 'paused'
-              ? '0'
-              : r.sequence == null
-              ? ''
-              : String(r.sequence),
-        }
-      })
-      setDrafts(nextDrafts)
+           await loadData()
     } finally {
       setSavingKey(null)
     }
   }
+function applyTournamentSelection() {
+  if (!draftTournamentA) {
+    alert('Seleziona almeno il Torneo A.')
+    return
+  }
 
+  if (draftTournamentA && draftTournamentB && draftTournamentA === draftTournamentB) {
+    alert('Torneo A e Torneo B non possono essere uguali.')
+    return
+  }
+
+  const changed =
+    draftTournamentA !== activeTournamentA ||
+    draftTournamentB !== activeTournamentB
+
+  if (!changed) return
+
+  const hadActive = !!activeTournamentA || !!activeTournamentB
+  if (hadActive) {
+    const ok = window.confirm('Stai cambiando i tornei attivi della regia. Continuare?')
+    if (!ok) return
+  }
+
+  setActiveTournamentA(draftTournamentA)
+  setActiveTournamentB(draftTournamentB)
+
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        a: draftTournamentA,
+        b: draftTournamentB,
+      })
+    )
+  } catch {}
+}
   async function saveAssignment(row: RegiaRow) {
     if (row.status === 'live') {
       alert('Una partita LIVE non può essere spostata.')
@@ -251,34 +333,71 @@ export default function RegiaPage() {
    return <span className="text-neutral-300">{row.scheduledTime || '-'}</span>
   }
 
-  if (!tournamentId) {
-    return (
-      <div className="min-h-screen bg-neutral-950 p-6 text-white">
-       <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-sm">
-         <h1 className="text-2xl font-bold text-white">Regia Campi</h1>
-         <p className="mt-2 text-sm text-neutral-400">
-            Apri la pagina con un tournament id valido.
-          </p>
-         <div className="mt-3 rounded-lg bg-neutral-950 p-3 text-sm text-neutral-300">
-            Esempio:
-            <div className="mt-2 font-mono text-xs">
-              /admin/tornei/[tour]/regia?tournament_id=ID_TAPPA
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+
 
   return (
     <div className="min-h-screen bg-neutral-950 p-4 md:p-6 text-white">
       <div className="mb-5 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+       <div className="mb-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+  <div>
+    <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Torneo A</div>
+    <select
+      value={draftTournamentA}
+      onChange={(e) => setDraftTournamentA(e.target.value)}
+      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+    >
+      <option value="">Seleziona torneo</option>
+      {availableTournaments.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}{t.date ? ` — ${new Date(t.date).toLocaleDateString()}` : ''}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  <div>
+    <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Torneo B</div>
+    <select
+      value={draftTournamentB}
+      onChange={(e) => setDraftTournamentB(e.target.value)}
+      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+    >
+      <option value="">Nessuno</option>
+      {availableTournaments
+        .filter((t) => t.id !== draftTournamentA)
+        .map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}{t.date ? ` — ${new Date(t.date).toLocaleDateString()}` : ''}
+          </option>
+        ))}
+    </select>
+  </div>
+
+  <div className="flex items-end">
+    <button
+      type="button"
+      onClick={applyTournamentSelection}
+      className="rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-2 text-sm font-medium text-white"
+    >
+      Applica selezione
+    </button>
+  </div>
+</div>
+
+{!activeTournamentA ? (
+  <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-300">
+    Seleziona almeno il <b>Torneo A</b> e premi <b>Applica selezione</b>.
+  </div>
+) : null}
+
+<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
            <h1 className="text-2xl font-bold tracking-tight text-white">Regia Campi</h1>
 <p className="text-sm text-neutral-400">
-              Tournament ID: <span className="font-mono">{tournamentId}</span>
-            </p>
+  Attivi:
+  <span className="ml-2 font-mono">{activeTournamentA || '—'}</span>
+  {activeTournamentB ? <span className="ml-2 font-mono">+ {activeTournamentB}</span> : null}
+</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -351,27 +470,28 @@ export default function RegiaPage() {
         <div className="overflow-x-auto">
           <table className="min-w-[1180px] w-full text-sm">
             <thead className="bg-neutral-950 text-left">
-             <tr className="border-b border-neutral-800">
-                <th className="px-4 py-3 font-semibold text-neutral-300">Campo</th>
-                <th className="px-4 py-3 font-semibold text-neutral-300">Seq</th>
-                <th className="px-4 py-3 font-semibold text-neutral-300">Ora / Stato</th>
-                <th className="px-4 py-3 font-semibold text-neutral-300">Fase</th>
-                <th className="px-4 py-3 font-semibold text-neutral-300">Squadre</th>
-                <th className="px-4 py-3 font-semibold text-neutral-300">Assegnazione</th>
-                <th className="px-4 py-3 font-semibold text-neutral-300">Azioni</th>
-              </tr>
+            <tr className="border-b border-neutral-800">
+  <th className="px-4 py-3 font-semibold text-neutral-300">Torneo</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Campo</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Seq</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Ora / Stato</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Fase</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Squadre</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Assegnazione</th>
+  <th className="px-4 py-3 font-semibold text-neutral-300">Azioni</th>
+</tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                 <td colSpan={7} className="px-4 py-8 text-center text-neutral-500">
+                 <td colSpan={8} className="px-4 py-8 text-center text-neutral-500">
                     Caricamento...
                   </td>
                 </tr>
               ) : visibleActiveRows.length === 0 ? (
                 <tr>
-                 <td colSpan={7} className="px-4 py-8 text-center text-neutral-500">
+                 <td colSpan={8} className="px-4 py-8 text-center text-neutral-500">
                     Nessuna partita trovata.
                   </td>
                 </tr>
@@ -379,8 +499,13 @@ export default function RegiaPage() {
                 visibleActiveRows.map((row) => {
                   const busy = savingKey === row.key
                   return (
-                   <tr key={row.key} className={`border-b border-neutral-800 ${rowBg(row.status)}`}>
-                      <td className="px-4 py-3 align-top">{renderCourt(row)}</td>
+                  <tr key={row.key} className={`border-b border-neutral-800 ${rowBg(row.status)}`}>
+  <td className="px-4 py-3 align-top">
+    <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
+      {row.tournament_id === activeTournamentA ? 'TORNEO A' : 'TORNEO B'}
+    </span>
+  </td>
+  <td className="px-4 py-3 align-top">{renderCourt(row)}</td>
                     <td className="px-4 py-3 align-top font-semibold text-white">
                         {row.status === 'paused' ? '0' : row.sequence ?? '-'}
                       </td>
@@ -506,6 +631,7 @@ export default function RegiaPage() {
             <table className="min-w-[1100px] w-full text-sm">
              <thead className="bg-neutral-950 text-left">
 <tr className="border-b border-neutral-800">
+  <th className="px-4 py-3 text-neutral-300">Torneo</th>
                   <th className="px-4 py-3 text-neutral-300">Campo</th>
                   <th className="px-4 py-3 text-neutral-300">Seq</th>
                   <th className="px-4 py-3 text-neutral-300">Stato</th>
@@ -519,6 +645,11 @@ export default function RegiaPage() {
                   const busy = savingKey === row.key
                   return (
                   <tr key={row.key} className="border-b border-neutral-800 bg-amber-950/20">
+                    <td className="px-4 py-3">
+    <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
+      {row.tournament_id === activeTournamentA ? 'TORNEO A' : 'TORNEO B'}
+    </span>
+  </td>
                       <td className="px-4 py-3">{renderCourt(row)}</td>
                       <td className="px-4 py-3">0</td>
                      <td className="px-4 py-3 font-semibold text-amber-300">SOSPESA</td>
