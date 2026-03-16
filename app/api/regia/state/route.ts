@@ -78,7 +78,24 @@ type ScheduleRow = {
 }
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+function getGroupLetters(gs: GroupState) {
+  const set = new Set<string>()
 
+  for (const [k, v] of Object.entries(gs?.meta || {})) {
+    if (Number(v?.capacity ?? 0) > 0) set.add(String(k).toUpperCase())
+  }
+
+  for (const key of Object.keys(gs?.assign || {})) {
+    const m = key.match(/^([A-Za-z]+)-\d+$/)
+    if (m) set.add(m[1].toUpperCase())
+  }
+
+  const arr = Array.from(set).sort()
+
+  if (arr.length) return arr
+
+  return LETTERS.slice(0, Math.max(1, gs?.groupsCount ?? 0))
+}
 function nextPow2(n: number) {
   let p = 1
   while (p < n) p <<= 1
@@ -321,6 +338,7 @@ function computeStatsForGroup(gs: GroupState, L: string) {
   const apply = (slotA?: number, slotB?: number, matchIdx?: number) => {
     if (!slotA || !slotB) return
     const mi = matchIdx ?? 0
+
     const pts = matchPointsSum(gs, L, mi)
     init[slotA].PF += pts.aPF
     init[slotA].PS += pts.aPS
@@ -329,12 +347,14 @@ function computeStatsForGroup(gs: GroupState, L: string) {
 
     const bestOf = bestOfOf(gs, L)
     const sc = gs?.scores?.[L] ?? []
+
     for (let s = 0; s < bestOf; s++) {
       const row = sc[mi * bestOf + s]
       const a = Number(row?.a)
       const b = Number(row?.b)
       if (!Number.isFinite(a) || !Number.isFinite(b)) continue
       if (a === b) continue
+
       if (a > b) {
         init[slotA].SW += 1
         init[slotB].SL += 1
@@ -357,6 +377,77 @@ function computeStatsForGroup(gs: GroupState, L: string) {
   for (const s of Object.values<any>(init)) {
     s.QP = s.PF / Math.max(1, s.PS)
     s.QS = s.SW / Math.max(1, s.SL)
+  }
+
+  const headToHeadWinner = (slotX: number, slotY: number): number | undefined => {
+    const rr = scheduleRowsForGroup(gs, L)
+    for (const r of rr) {
+      if (r.setNo !== 1) continue
+      const a = r.a
+      const b = r.b
+      if (!a || !b) continue
+
+      const ok = (a === slotX && b === slotY) || (a === slotY && b === slotX)
+      if (!ok) continue
+
+      const w = matchWinnerFromScores(gs, L, r.matchIdx).winner
+      if (!w) return undefined
+      return w === 'A' ? a : b
+    }
+    return undefined
+  }
+
+  const miniStatsAmong = (slots: number[]) => {
+    const setSlots = new Set(slots)
+    const tmp: Record<number, { W: number; SW: number; SL: number; PF: number; PS: number; QS: number; QP: number }> = {}
+
+    for (const s of slots) {
+      tmp[s] = { W: 0, SW: 0, SL: 0, PF: 0, PS: 0, QS: 0, QP: 0 }
+    }
+
+    const rr = scheduleRowsForGroup(gs, L)
+    const bestOf = bestOfOf(gs, L)
+    const sc = gs?.scores?.[L] ?? []
+
+    for (const r of rr) {
+      if (r.setNo !== 1) continue
+      const a = r.a
+      const b = r.b
+      if (!a || !b) continue
+      if (!setSlots.has(a) || !setSlots.has(b)) continue
+
+      for (let si = 0; si < bestOf; si++) {
+        const row = sc[r.matchIdx * bestOf + si]
+        const va = Number(row?.a)
+        const vb = Number(row?.b)
+        if (!Number.isFinite(va) || !Number.isFinite(vb)) continue
+
+        tmp[a].PF += va
+        tmp[a].PS += vb
+        tmp[b].PF += vb
+        tmp[b].PS += va
+
+        if (va === vb) continue
+        if (va > vb) {
+          tmp[a].SW += 1
+          tmp[b].SL += 1
+        } else {
+          tmp[b].SW += 1
+          tmp[a].SL += 1
+        }
+      }
+
+      const w = matchWinnerFromScores(gs, L, r.matchIdx).winner
+      if (w === 'A') tmp[a].W += 1
+      else if (w === 'B') tmp[b].W += 1
+    }
+
+    for (const s of slots) {
+      tmp[s].QS = tmp[s].SW / Math.max(1, tmp[s].SL)
+      tmp[s].QP = tmp[s].PF / Math.max(1, tmp[s].PS)
+    }
+
+    return tmp
   }
 
   if (fmt === 'pool' && cap === 4) {
@@ -403,6 +494,27 @@ function computeStatsForGroup(gs: GroupState, L: string) {
   const arr = Object.values<any>(init)
   arr.sort((A, B) => {
     if (B.W !== A.W) return B.W - A.W
+
+    const tiedSlots = Object.values<any>(init)
+      .filter((x) => x.W === A.W)
+      .map((x) => x.slot)
+
+    if (tiedSlots.length === 2) {
+      const w = headToHeadWinner(A.slot, B.slot)
+      if (w === A.slot) return -1
+      if (w === B.slot) return 1
+    } else if (tiedSlots.length >= 3) {
+      const ms = miniStatsAmong(tiedSlots)
+      const a = ms[A.slot]
+      const b = ms[B.slot]
+      if (a && b) {
+        if (b.W !== a.W) return b.W - a.W
+        if (b.QS !== a.QS) return b.QS - a.QS
+        if (b.QP !== a.QP) return b.QP - a.QP
+        if (b.PF !== a.PF) return b.PF - a.PF
+      }
+    }
+
     if (B.QS !== A.QS) return B.QS - A.QS
     if (B.QP !== A.QP) return B.QP - A.QP
     if (B.PF !== A.PF) return B.PF - A.PF
@@ -411,9 +523,8 @@ function computeStatsForGroup(gs: GroupState, L: string) {
 
   return arr
 }
-
 function buildGroupsRank(gs: GroupState) {
-  const letters = LETTERS.slice(0, Math.max(1, gs?.groupsCount ?? 0))
+  const letters = getGroupLetters(gs)
   const byGroup: Record<string, string[]> = {}
   const avulsa: string[] = []
 
@@ -441,61 +552,69 @@ function buildGroupsRank(gs: GroupState) {
     avulsa: avRows.map((r) => r.label as string),
   }
 }
-
+function normalizeRefText(s: string) {
+  return String(s || '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 function makeBracketResolver(
   gs: GroupState,
   brackets: Bracket[],
   winnersById: Record<string, WinnerMap>,
 ) {
   const { byGroup, avulsa } = buildGroupsRank(gs)
-  const byTitle = new Map(brackets.map((b) => [b.title.toUpperCase(), b]))
+ const byTitle = new Map(brackets.map((b) => [normalizeRefText(b.title), b]))
 
   const baseResolve = (token: string): string => {
-    if (!token) return '—'
-    if (token === '-' || token === '—') return '—'
-    if (token.toUpperCase() === 'BYE') return 'BYE'
+    const raw = String(token || '').trim()
+    if (!raw) return '—'
+    
+    if (raw === '-' || raw === '—') return '—'
+    if (raw.toUpperCase() === 'BYE') return 'BYE'
 
-    let m = token.match(/^([A-Z])(\d{1,2})$/)
+    let m = raw.match(/^([A-Z])(\d{1,2})$/)
     if (m) {
       const letter = m[1].toUpperCase()
       const pos = Math.max(1, Number(m[2])) - 1
       const name = byGroup[letter]?.[pos]
-      return name || token
+      return name || raw
     }
 
-    m = token.match(/^(\d{1,2})([A-Z])$/)
+    m = raw.match(/^(\d{1,2})([A-Z])$/)
     if (m) {
       const letter = m[2].toUpperCase()
       const pos = Math.max(1, Number(m[1])) - 1
       const name = byGroup[letter]?.[pos]
-      return name || token
+      return name || raw
     }
 
-    if (/^\d+$/.test(token)) {
-      const idx = Math.max(1, Number(token)) - 1
-      return avulsa[idx] || token
+    if (/^\d+$/.test(raw)) {
+      const idx = Math.max(1, Number(raw)) - 1
+      return avulsa[idx] || raw
     }
 
-    return token
+    return raw
   }
 
   const externalResolve = (token: string): string | undefined => {
     const raw = String(token || '').trim()
     if (!raw) return undefined
 
-    const m = raw.match(/^(Perdente|Loser|Vincente|Winner)\s+(.+?)\s+([A-Za-z]+)?(\d+)$/i)
+   const m = raw.match(/^(Perdente|Loser|Vincente|Winner)\s+(.+?)\s+([A-Za-z]+|M)?\s*(\d+)$/i)
     if (!m) return undefined
 
     const kind = m[1].toLowerCase()
-    const titleU = m[2].trim().toUpperCase()
-    const prefix = String(m[3] || 'R').toUpperCase()
+   const titleU = normalizeRefText(m[2])
+    let prefix = String(m[3] || 'R').toUpperCase()
+if (prefix === 'M') prefix = 'R'
     const num = Number(m[4])
 
     const br = byTitle.get(titleU)
     if (!br || !Number.isFinite(num) || num < 1) return undefined
 
-    const code = `${prefix}${num}`
     const winners = winnersById[br.id] || {}
+    const code = `${prefix}${num}`
 
     const labelsForCode = (code: string): { A: string; B: string } | null => {
       if (/^R\d+$/i.test(code)) {
@@ -527,57 +646,99 @@ function makeBracketResolver(
         }
       }
 
-      if (/^X\d+$/i.test(code)) {
+        if (/^X\d+$/i.test(code)) {
         const idx = Number(code.slice(1))
+
         if (idx === 1) {
           return {
             A: loserOfCode('R1') || `Loser R1 — ${br.title}`,
             B: loserOfCode('R2') || `Loser R2 — ${br.title}`,
           }
         }
+
         if (idx === 2) {
           return {
             A: loserOfCode('R3') || `Loser R3 — ${br.title}`,
             B: loserOfCode('R4') || `Loser R4 — ${br.title}`,
           }
         }
+
+        if (idx === 3) {
+          return {
+            A: winnerOfCode('X1') || `Winner X1 — ${br.title}`,
+            B: '—',
+          }
+        }
+
+        if (idx === 4) {
+          return {
+            A: winnerOfCode('X2') || `Winner X2 — ${br.title}`,
+            B: '—',
+          }
+        }
+
+        return null
+      }
+
+      if (/^Q\d+$/i.test(code)) {
+        const idx = Number(code.slice(1))
+
+        if (idx === 1) {
+          return {
+            A: loserOfCode('Z1') || `Loser Z1 — ${br.title}`,
+            B: '—',
+          }
+        }
+
+        if (idx === 2) {
+          return {
+            A: loserOfCode('Z2') || `Loser Z2 — ${br.title}`,
+            B: '—',
+          }
+        }
+
         return null
       }
 
       if (/^W\d+$/i.test(code)) {
         const idx = Number(code.slice(1))
+
         if (idx === 1) {
           return {
-            A: loserOfCode('Z1') || `Loser Z1 — ${br.title}`,
-            B: winnerOfCode('X1') || `Winner X1 — ${br.title}`,
+            A: winnerOfCode('Q1') || `Winner Q1 — ${br.title}`,
+            B: winnerOfCode('X3') || `Winner X3 — ${br.title}`,
           }
         }
+
         if (idx === 2) {
           return {
-            A: loserOfCode('Z2') || `Loser Z2 — ${br.title}`,
-            B: winnerOfCode('X2') || `Winner X2 — ${br.title}`,
+            A: winnerOfCode('Q2') || `Winner Q2 — ${br.title}`,
+            B: winnerOfCode('X4') || `Winner X4 — ${br.title}`,
           }
         }
+
         return null
       }
 
       if (/^CO\d+$/i.test(code)) {
         const idx = Number(code.slice(2))
+
         if (idx === 1) {
           return {
-            A: winnerOfCode('Z1') || `Winner Z1 — ${br.title}`,
+            A: winnerOfCode('Y1') || `Winner Y1 — ${br.title}`,
             B: winnerOfCode('W2') || `Winner W2 — ${br.title}`,
           }
         }
+
         if (idx === 2) {
           return {
-            A: winnerOfCode('Z2') || `Winner Z2 — ${br.title}`,
+            A: winnerOfCode('Y2') || `Winner Y2 — ${br.title}`,
             B: winnerOfCode('W1') || `Winner W1 — ${br.title}`,
           }
         }
+
         return null
       }
-
       if (code === 'F') {
         return {
           A: winnerOfCode('CO1') || `Winner CO1 — ${br.title}`,
@@ -767,23 +928,111 @@ function buildDERows(
   }
 
   const labelsFor = (code: string): { a: string; b: string } => {
-    switch (code) {
-      case 'R1': return rLabel(0)
-      case 'R2': return rLabel(1)
-      case 'R3': return rLabel(2)
-      case 'R4': return rLabel(3)
-      case 'Z1': return { a: winnerOf('R1') || `Winner R1 — ${bracket.title}`, b: winnerOf('R2') || `Winner R2 — ${bracket.title}` }
-      case 'Z2': return { a: winnerOf('R3') || `Winner R3 — ${bracket.title}`, b: winnerOf('R4') || `Winner R4 — ${bracket.title}` }
-      case 'X1': return { a: loserOf('R1') || `Loser R1 — ${bracket.title}`, b: loserOf('R2') || `Loser R2 — ${bracket.title}` }
-      case 'X2': return { a: loserOf('R3') || `Loser R3 — ${bracket.title}`, b: loserOf('R4') || `Loser R4 — ${bracket.title}` }
-      case 'W1': return { a: loserOf('Z1') || `Loser Z1 — ${bracket.title}`, b: winnerOf('X1') || `Winner X1 — ${bracket.title}` }
-      case 'W2': return { a: loserOf('Z2') || `Loser Z2 — ${bracket.title}`, b: winnerOf('X2') || `Winner X2 — ${bracket.title}` }
-      case 'CO1': return { a: winnerOf('Z1') || `Winner Z1 — ${bracket.title}`, b: winnerOf('W2') || `Winner W2 — ${bracket.title}` }
-      case 'CO2': return { a: winnerOf('Z2') || `Winner Z2 — ${bracket.title}`, b: winnerOf('W1') || `Winner W1 — ${bracket.title}` }
-      case 'F': return { a: winnerOf('CO1') || `Winner CO1 — ${bracket.title}`, b: winnerOf('CO2') || `Winner CO2 — ${bracket.title}` }
-      case 'THIRD': return { a: loserOf('CO1') || `Loser CO1 — ${bracket.title}`, b: loserOf('CO2') || `Loser CO2 — ${bracket.title}` }
-      default: return { a: '—', b: '—' }
+ switch (code) {
+  case 'R1': return rLabel(0)
+  case 'R2': return rLabel(1)
+  case 'R3': return rLabel(2)
+  case 'R4': return rLabel(3)
+
+  case 'Z1':
+    return {
+      a: winnerOf('R1') || `Winner R1 — ${bracket.title}`,
+      b: winnerOf('R2') || `Winner R2 — ${bracket.title}`,
     }
+
+  case 'Z2':
+    return {
+      a: winnerOf('R3') || `Winner R3 — ${bracket.title}`,
+      b: winnerOf('R4') || `Winner R4 — ${bracket.title}`,
+    }
+
+  case 'Y1':
+    return {
+      a: winnerOf('Z1') || `Winner Z1 — ${bracket.title}`,
+      b: '—',
+    }
+
+  case 'Y2':
+    return {
+      a: winnerOf('Z2') || `Winner Z2 — ${bracket.title}`,
+      b: '—',
+    }
+
+  case 'X1':
+    return {
+      a: loserOf('R1') || `Loser R1 — ${bracket.title}`,
+      b: loserOf('R2') || `Loser R2 — ${bracket.title}`,
+    }
+
+  case 'X2':
+    return {
+      a: loserOf('R3') || `Loser R3 — ${bracket.title}`,
+      b: loserOf('R4') || `Loser R4 — ${bracket.title}`,
+    }
+
+  case 'X3':
+    return {
+      a: winnerOf('X1') || `Winner X1 — ${bracket.title}`,
+      b: '—',
+    }
+
+  case 'X4':
+    return {
+      a: winnerOf('X2') || `Winner X2 — ${bracket.title}`,
+      b: '—',
+    }
+
+  case 'Q1':
+    return {
+      a: loserOf('Z1') || `Loser Z1 — ${bracket.title}`,
+      b: '—',
+    }
+
+  case 'Q2':
+    return {
+      a: loserOf('Z2') || `Loser Z2 — ${bracket.title}`,
+      b: '—',
+    }
+
+  case 'W1':
+    return {
+      a: winnerOf('Q1') || `Winner Q1 — ${bracket.title}`,
+      b: winnerOf('X3') || `Winner X3 — ${bracket.title}`,
+    }
+
+  case 'W2':
+    return {
+      a: winnerOf('Q2') || `Winner Q2 — ${bracket.title}`,
+      b: winnerOf('X4') || `Winner X4 — ${bracket.title}`,
+    }
+
+  case 'CO1':
+    return {
+      a: winnerOf('Y1') || `Winner Y1 — ${bracket.title}`,
+      b: winnerOf('W2') || `Winner W2 — ${bracket.title}`,
+    }
+
+  case 'CO2':
+    return {
+      a: winnerOf('Y2') || `Winner Y2 — ${bracket.title}`,
+      b: winnerOf('W1') || `Winner W1 — ${bracket.title}`,
+    }
+
+  case 'F':
+    return {
+      a: winnerOf('CO1') || `Winner CO1 — ${bracket.title}`,
+      b: winnerOf('CO2') || `Winner CO2 — ${bracket.title}`,
+    }
+
+  case 'THIRD':
+    return {
+      a: loserOf('CO1') || `Loser CO1 — ${bracket.title}`,
+      b: loserOf('CO2') || `Loser CO2 — ${bracket.title}`,
+    }
+
+  default:
+    return { a: '—', b: '—' }
+}
   }
 
   function winnerOf(code: string): string {
@@ -802,22 +1051,35 @@ function buildDERows(
     return ''
   }
 
-  const defs = [
-    { code: 'R1', phase: `Round 1 ${bracket.title}` },
-    { code: 'R2', phase: `Round 1 ${bracket.title}` },
-    { code: 'R3', phase: `Round 1 ${bracket.title}` },
-    { code: 'R4', phase: `Round 1 ${bracket.title}` },
-    { code: 'Z1', phase: `Upper ${bracket.title}` },
-    { code: 'Z2', phase: `Upper ${bracket.title}` },
-    { code: 'X1', phase: `Losers ${bracket.title}` },
-    { code: 'X2', phase: `Losers ${bracket.title}` },
-    { code: 'W1', phase: `Losers ${bracket.title}` },
-    { code: 'W2', phase: `Losers ${bracket.title}` },
-    { code: 'CO1', phase: `Semifinale ${bracket.title}` },
-    { code: 'CO2', phase: `Semifinale ${bracket.title}` },
-    { code: 'F', phase: `Finale ${bracket.title}` },
-    { code: 'THIRD', phase: `3° / 4° ${bracket.title}` },
-  ]
+ const defs = [
+  { code: 'R1', phase: `Round 1 ${bracket.title}` },
+  { code: 'R2', phase: `Round 1 ${bracket.title}` },
+  { code: 'R3', phase: `Round 1 ${bracket.title}` },
+  { code: 'R4', phase: `Round 1 ${bracket.title}` },
+
+  { code: 'Z1', phase: `Upper ${bracket.title}` },
+  { code: 'Z2', phase: `Upper ${bracket.title}` },
+
+  { code: 'Y1', phase: `Upper ${bracket.title}` },
+  { code: 'Y2', phase: `Upper ${bracket.title}` },
+
+  { code: 'X1', phase: `Losers ${bracket.title}` },
+  { code: 'X2', phase: `Losers ${bracket.title}` },
+  { code: 'X3', phase: `Losers ${bracket.title}` },
+  { code: 'X4', phase: `Losers ${bracket.title}` },
+
+  { code: 'Q1', phase: `Losers ${bracket.title}` },
+  { code: 'Q2', phase: `Losers ${bracket.title}` },
+
+  { code: 'W1', phase: `Losers ${bracket.title}` },
+  { code: 'W2', phase: `Losers ${bracket.title}` },
+
+  { code: 'CO1', phase: `Semifinale ${bracket.title}` },
+  { code: 'CO2', phase: `Semifinale ${bracket.title}` },
+
+  { code: 'F', phase: `Finale ${bracket.title}` },
+  { code: 'THIRD', phase: `3° / 4° ${bracket.title}` },
+]
 
   return defs.map((d) => {
     const key = `bracket:${bracket.id}:${d.code}`
@@ -918,7 +1180,7 @@ function buildAllRows(tournament_id: string, groupState: GroupState, bracketStat
   const rows: RegiaRow[] = []
   const groupRegia = groupState?.regia?.items || {}
   const bracketRegia = bracketState?.regia?.items || {}
-  const letters = LETTERS.slice(0, Math.max(1, groupState?.groupsCount ?? 0))
+  const letters = getGroupLetters(groupState)
 
   for (const L of letters) {
     const matchRows = scheduleRowsForGroup(groupState, L).filter((r) => r.setNo === 1)
