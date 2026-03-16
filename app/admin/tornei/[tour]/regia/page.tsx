@@ -145,15 +145,15 @@ async function loadTournamentOptions() {
   const row = rows.find((r) => r.key === key)
   return row?.tournament_id || ''
 }
- async function mutate(
-  key: string,
-  action: 'save_assignment' | 'set_live' | 'stop_live' | 'close_match',
-  extra?: { court?: number | null; sequence?: number | null }
+async function mutate(
+  key: string | null,
+  action: 'save_assignment' | 'set_live' | 'stop_live' | 'close_match' | 'reopen_match' | 'reset_tournament_regia',
+  extra?: { court?: number | null; sequence?: number | null; tournament_id?: string }
 ) {
-  const targetTournamentId = tournamentIdForKey(key)
+  const targetTournamentId = extra?.tournament_id || (key ? tournamentIdForKey(key) : '')
   if (!targetTournamentId) return
 
-  setSavingKey(key)
+  setSavingKey(key || '__bulk__')
 
   try {
     const res = await fetch('/api/regia/state', {
@@ -165,24 +165,51 @@ async function loadTournamentOptions() {
       body: JSON.stringify({
         tournament_id: targetTournamentId,
         action,
-        key,
+        key: key || undefined,
         ...extra,
       }),
     })
 
-   
-
-      const json = await res.json()
-      if (!res.ok) {
-        alert(json?.error || 'Errore regia')
-        return
-      }
-
-           await loadData()
-    } finally {
-      setSavingKey(null)
+    const json = await res.json()
+    if (!res.ok) {
+      alert(json?.error || 'Errore regia')
+      return
     }
+
+    await loadData()
+  } finally {
+    setSavingKey(null)
   }
+}
+  async function resetSelectedTournaments() {
+  if (!activeTournamentA && !activeTournamentB) {
+    alert('Nessun torneo attivo da pulire.')
+    return
+  }
+
+  const names = [
+    activeTournamentA ? (tournamentNameById[activeTournamentA] || activeTournamentA) : null,
+    activeTournamentB ? (tournamentNameById[activeTournamentB] || activeTournamentB) : null,
+  ].filter(Boolean)
+
+  const firstOk = window.confirm(
+    `Stai per azzerare completamente campo, sequenza e stato della regia per: ${names.join(' + ')}. Continuare?`
+  )
+  if (!firstOk) return
+
+  const secondOk = window.confirm(
+    `Conferma definitiva: vuoi davvero pulire la regia del/dei torneo/i selezionato/i?`
+  )
+  if (!secondOk) return
+
+  if (activeTournamentA) {
+    await mutate(null, 'reset_tournament_regia', { tournament_id: activeTournamentA })
+  }
+
+  if (activeTournamentB) {
+    await mutate(null, 'reset_tournament_regia', { tournament_id: activeTournamentB })
+  }
+}
 function applyTournamentSelection() {
   if (!draftTournamentA) {
     alert('Seleziona almeno il Torneo A.')
@@ -307,11 +334,23 @@ function applyTournamentSelection() {
   if (court === 10) return 'border-fuchsia-500 bg-fuchsia-950/40 text-fuchsia-300'
   return 'border-neutral-700 bg-neutral-950 text-neutral-300'
 }
-
- function rowBg(status: RegiaStatus) {
+function tournamentBadge(tournamentId: string) {
+  if (tournamentId === activeTournamentA) {
+    return 'border-sky-500 bg-sky-950/40 text-sky-300'
+  }
+  if (tournamentId === activeTournamentB) {
+    return 'border-fuchsia-500 bg-fuchsia-950/40 text-fuchsia-300'
+  }
+  return 'border-neutral-700 bg-neutral-950 text-neutral-300'
+}
+function rowBg(status: RegiaStatus, tournamentId?: string) {
   if (status === 'live') return 'bg-emerald-950/40'
   if (status === 'paused') return 'bg-amber-950/30'
   if (status === 'done') return 'bg-neutral-950 text-neutral-500'
+
+  if (tournamentId === activeTournamentA) return 'bg-sky-950/10'
+  if (tournamentId === activeTournamentB) return 'bg-fuchsia-950/10'
+
   return 'bg-neutral-900'
 }
   function renderCourt(row: RegiaRow) {
@@ -344,7 +383,7 @@ function applyTournamentSelection() {
   return (
     <div className="min-h-screen bg-neutral-950 p-4 md:p-6 text-white">
       <div className="mb-5 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 shadow-sm">
-       <div className="mb-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
   <div>
     <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Torneo A</div>
     <select
@@ -379,15 +418,7 @@ function applyTournamentSelection() {
     </select>
   </div>
 
-  <div className="flex items-end">
-    <button
-      type="button"
-      onClick={applyTournamentSelection}
-      className="rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-2 text-sm font-medium text-white"
-    >
-      Applica selezione
-    </button>
-  </div>
+ 
 </div>
 
 {!activeTournamentA ? (
@@ -412,48 +443,71 @@ function applyTournamentSelection() {
 </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setViewMode('live')}
-             className={`rounded-xl px-3 py-2 text-sm font-medium ${
-  viewMode === 'live'
-    ? 'bg-white text-black'
-    : 'border border-neutral-700 bg-neutral-900 text-neutral-300'
+         <div className="flex flex-wrap gap-2">
+
+<button
+type="button"
+onClick={() => setViewMode('live')}
+className={`rounded-xl px-3 py-2 text-sm font-medium ${
+viewMode === 'live'
+? 'bg-white text-black'
+: 'border border-neutral-700 bg-neutral-900 text-neutral-300'
 }`}
-            >
-              LIVE
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('live_plus_2')}
-              className={`rounded-xl px-3 py-2 text-sm font-medium ${
-  viewMode === 'live_plus_2'
-    ? 'bg-white text-black'
-    : 'border border-neutral-700 bg-neutral-900 text-neutral-300'
+>
+LIVE
+</button>
+
+<button
+type="button"
+onClick={() => setViewMode('live_plus_2')}
+className={`rounded-xl px-3 py-2 text-sm font-medium ${
+viewMode === 'live_plus_2'
+? 'bg-white text-black'
+: 'border border-neutral-700 bg-neutral-900 text-neutral-300'
 }`}
-            >
-              LIVE + 2
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('all')}
-            className={`rounded-xl px-3 py-2 text-sm font-medium ${
-  viewMode === 'all'
-    ? 'bg-white text-black'
-    : 'border border-neutral-700 bg-neutral-900 text-neutral-300'
+>
+LIVE + 2
+</button>
+
+<button
+type="button"
+onClick={() => setViewMode('all')}
+className={`rounded-xl px-3 py-2 text-sm font-medium ${
+viewMode === 'all'
+? 'bg-white text-black'
+: 'border border-neutral-700 bg-neutral-900 text-neutral-300'
 }`}
-            >
-              TUTTE
-            </button>
-            <button
-              type="button"
-              onClick={() => void loadData()}
-             className="rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm font-medium text-neutral-200"
-            >
-              Ricarica
-            </button>
-          </div>
+>
+TUTTE
+</button>
+
+<button
+type="button"
+onClick={() => void loadData()}
+className="rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm font-medium text-neutral-200"
+>
+Ricarica
+</button>
+
+<button
+type="button"
+onClick={applyTournamentSelection}
+disabled={savingKey === '__bulk__'}
+className="rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+>
+Applica selezione
+</button>
+
+<button
+type="button"
+onClick={() => void resetSelectedTournaments()}
+disabled={savingKey === '__bulk__' || (!activeTournamentA && !activeTournamentB)}
+className="rounded-xl border border-red-800 bg-red-950/40 px-3 py-2 text-sm font-medium text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+>
+Pulisci regia
+</button>
+
+</div>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-4">
@@ -511,9 +565,11 @@ function applyTournamentSelection() {
                 visibleActiveRows.map((row) => {
                   const busy = savingKey === row.key
                   return (
-                  <tr key={row.key} className={`border-b border-neutral-800 ${rowBg(row.status)}`}>
+                 <tr key={row.key} className={`border-b border-neutral-800 ${rowBg(row.status, row.tournament_id)}`}>
   <td className="px-4 py-3 align-top">
-    <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
+   <span
+  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tournamentBadge(row.tournament_id)}`}
+>
   {tournamentNameById[row.tournament_id] || row.tournament_id}
 </span>
   </td>
@@ -658,7 +714,9 @@ function applyTournamentSelection() {
                   return (
                   <tr key={row.key} className="border-b border-neutral-800 bg-amber-950/20">
                     <td className="px-4 py-3">
-   <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
+  <span
+  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tournamentBadge(row.tournament_id)}`}
+>
   {tournamentNameById[row.tournament_id] || row.tournament_id}
 </span>
   </td>
@@ -725,7 +783,7 @@ function applyTournamentSelection() {
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-[1000px] w-full text-sm">
-             <thead className="bg-neutral-950 text-left">
+            <thead className="bg-neutral-950 text-left">
   <tr className="border-b border-neutral-800">
     <th className="px-4 py-3 text-neutral-300">Torneo</th>
     <th className="px-4 py-3 text-neutral-300">Campo</th>
@@ -733,25 +791,45 @@ function applyTournamentSelection() {
     <th className="px-4 py-3 text-neutral-300">Ora</th>
     <th className="px-4 py-3 text-neutral-300">Fase</th>
     <th className="px-4 py-3 text-neutral-300">Squadre</th>
+    <th className="px-4 py-3 text-neutral-300">Azioni</th>
   </tr>
 </thead>
               <tbody>
-  {doneRows.map((row) => (
-    <tr key={row.key} className="border-b border-neutral-800 bg-neutral-950 text-neutral-500">
-      <td className="px-4 py-3">
-        <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
-          {tournamentNameById[row.tournament_id] || row.tournament_id}
-        </span>
-      </td>
-      <td className="px-4 py-3">{renderCourt(row)}</td>
-      <td className="px-4 py-3">{row.sequence ?? '-'}</td>
-      <td className="px-4 py-3">{row.scheduledTime || '-'}</td>
-      <td className="px-4 py-3">{row.phase}</td>
-      <td className="px-4 py-3">
-        {row.teamA} <span className="text-neutral-500">vs</span> {row.teamB}
-      </td>
-    </tr>
-  ))}
+  {doneRows.map((row) => {
+    const busy = savingKey === row.key
+
+    return (
+      <tr key={row.key} className="border-b border-neutral-800 bg-neutral-950 text-neutral-500">
+        <td className="px-4 py-3">
+          <span
+            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tournamentBadge(row.tournament_id)}`}
+          >
+            {tournamentNameById[row.tournament_id] || row.tournament_id}
+          </span>
+        </td>
+        <td className="px-4 py-3">{renderCourt(row)}</td>
+        <td className="px-4 py-3">{row.sequence ?? '-'}</td>
+        <td className="px-4 py-3">{row.scheduledTime || '-'}</td>
+        <td className="px-4 py-3">{row.phase}</td>
+        <td className="px-4 py-3">
+          {row.teamA} <span className="text-neutral-500">vs</span> {row.teamB}
+        </td>
+        <td className="px-4 py-3">
+          <button
+            type="button"
+            onClick={() => {
+              const ok = window.confirm('Riaprire questa partita chiusa?')
+              if (ok) void mutate(row.key, 'reopen_match')
+            }}
+            disabled={busy}
+            className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            RIAPRI
+          </button>
+        </td>
+      </tr>
+    )
+  })}
 </tbody>
             </table>
           </div>
