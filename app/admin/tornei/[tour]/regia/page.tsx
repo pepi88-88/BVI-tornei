@@ -46,7 +46,13 @@ const [draftTournamentB, setDraftTournamentB] = useState<string>('')
 
 const [activeTournamentA, setActiveTournamentA] = useState<string>('')
 const [activeTournamentB, setActiveTournamentB] = useState<string>('')
-
+  
+const tournamentNameById = useMemo(() => {
+  return Object.fromEntries(
+    availableTournaments.map((t) => [t.id, t.name])
+  ) as Record<string, string>
+}, [availableTournaments])
+  
 const STORAGE_KEY = 'regia:selectedTournaments'
  async function loadData() {
   const ids = [activeTournamentA, activeTournamentB].filter(Boolean)
@@ -395,8 +401,14 @@ function applyTournamentSelection() {
            <h1 className="text-2xl font-bold tracking-tight text-white">Regia Campi</h1>
 <p className="text-sm text-neutral-400">
   Attivi:
-  <span className="ml-2 font-mono">{activeTournamentA || '—'}</span>
-  {activeTournamentB ? <span className="ml-2 font-mono">+ {activeTournamentB}</span> : null}
+  <span className="ml-2 font-mono">
+    {activeTournamentA ? (tournamentNameById[activeTournamentA] || activeTournamentA) : '—'}
+  </span>
+  {activeTournamentB ? (
+    <span className="ml-2 font-mono">
+      + {tournamentNameById[activeTournamentB] || activeTournamentB}
+    </span>
+  ) : null}
 </p>
           </div>
 
@@ -502,8 +514,8 @@ function applyTournamentSelection() {
                   <tr key={row.key} className={`border-b border-neutral-800 ${rowBg(row.status)}`}>
   <td className="px-4 py-3 align-top">
     <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
-      {row.tournament_id === activeTournamentA ? 'TORNEO A' : 'TORNEO B'}
-    </span>
+  {tournamentNameById[row.tournament_id] || row.tournament_id}
+</span>
   </td>
   <td className="px-4 py-3 align-top">{renderCourt(row)}</td>
                     <td className="px-4 py-3 align-top font-semibold text-white">
@@ -646,9 +658,9 @@ function applyTournamentSelection() {
                   return (
                   <tr key={row.key} className="border-b border-neutral-800 bg-amber-950/20">
                     <td className="px-4 py-3">
-    <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
-      {row.tournament_id === activeTournamentA ? 'TORNEO A' : 'TORNEO B'}
-    </span>
+   <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
+  {tournamentNameById[row.tournament_id] || row.tournament_id}
+</span>
   </td>
                       <td className="px-4 py-3">{renderCourt(row)}</td>
                       <td className="px-4 py-3">0</td>
@@ -713,28 +725,34 @@ function applyTournamentSelection() {
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-[1000px] w-full text-sm">
-              <thead className="bg-neutral-950 text-left">
-<tr className="border-b border-neutral-800">
-                  <th className="px-4 py-3 text-neutral-300">Campo</th>
-                  <th className="px-4 py-3 text-neutral-300">Seq</th>
-                  <th className="px-4 py-3 text-neutral-300">Ora</th>
-                  <th className="px-4 py-3 text-neutral-300">Fase</th>
-                  <th className="px-4 py-3 text-neutral-300">Squadre</th>
-                </tr>
-              </thead>
+             <thead className="bg-neutral-950 text-left">
+  <tr className="border-b border-neutral-800">
+    <th className="px-4 py-3 text-neutral-300">Torneo</th>
+    <th className="px-4 py-3 text-neutral-300">Campo</th>
+    <th className="px-4 py-3 text-neutral-300">Seq</th>
+    <th className="px-4 py-3 text-neutral-300">Ora</th>
+    <th className="px-4 py-3 text-neutral-300">Fase</th>
+    <th className="px-4 py-3 text-neutral-300">Squadre</th>
+  </tr>
+</thead>
               <tbody>
-                {doneRows.map((row) => (
-                 <tr key={row.key} className="border-b border-neutral-800 bg-neutral-950 text-neutral-500">
-                    <td className="px-4 py-3">{renderCourt(row)}</td>
-                    <td className="px-4 py-3">{row.sequence ?? '-'}</td>
-                    <td className="px-4 py-3">{row.scheduledTime || '-'}</td>
-                    <td className="px-4 py-3">{row.phase}</td>
-                    <td className="px-4 py-3">
-                     {row.teamA} <span className="text-neutral-500">vs</span> {row.teamB}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+  {doneRows.map((row) => (
+    <tr key={row.key} className="border-b border-neutral-800 bg-neutral-950 text-neutral-500">
+      <td className="px-4 py-3">
+        <span className="inline-flex rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-neutral-300">
+          {tournamentNameById[row.tournament_id] || row.tournament_id}
+        </span>
+      </td>
+      <td className="px-4 py-3">{renderCourt(row)}</td>
+      <td className="px-4 py-3">{row.sequence ?? '-'}</td>
+      <td className="px-4 py-3">{row.scheduledTime || '-'}</td>
+      <td className="px-4 py-3">{row.phase}</td>
+      <td className="px-4 py-3">
+        {row.teamA} <span className="text-neutral-500">vs</span> {row.teamB}
+      </td>
+    </tr>
+  ))}
+</tbody>
             </table>
           </div>
         </div>
