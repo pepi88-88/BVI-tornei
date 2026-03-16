@@ -917,46 +917,53 @@ useEffect(() => {
 // nella pagina risultati, autosave winners
 useEffect(() => {
   if (!tId) return
-  if (!loadedRemote) return             // aspetta il caricamento remoto
-  if (brackets.length === 0) return     // mai salvare items: []
+  if (!loadedRemote) return
+  if (brackets.length === 0) return
 
   const curTId = tId
   const timer = setTimeout(async () => {
     try {
-      // leggi il precedente per non perdere winners/itaScores/is_public
       const res = await fetch(`/api/brackets/state?tournament_id=${encodeURIComponent(curTId)}`, {
-        headers: { 'x-role': 'admin' }, cache: 'no-store'
+        headers: { 'x-role': 'admin' },
+        cache: 'no-store',
       })
       const js = await res.json()
       const prev = (js?.state || {}) as any
 
       const next = {
-        items: brackets,                                  // i tabelloni correnti
-        winnersById: prev?.winnersById || {},             // preserva
-        itaScoresById: prev?.itaScoresById || {},         // preserva
+        items: brackets,
+        winnersById: prev?.winnersById || {},
+        itaScoresById: prev?.itaScoresById || {},
         isPublic: typeof prev?.isPublic === 'boolean' ? prev.isPublic : false,
+        regia: prev?.regia ?? { items: {} }, // <-- IMPORTANTE: preserva la regia
       }
 
-
-      // evita PUT inutili se nulla è cambiato
       const same =
         JSON.stringify(prev?.items || []) === JSON.stringify(next.items) &&
         JSON.stringify(prev?.winnersById || {}) === JSON.stringify(next.winnersById) &&
         JSON.stringify(prev?.itaScoresById || {}) === JSON.stringify(next.itaScoresById) &&
-        Boolean(prev?.isPublic) === Boolean(next.isPublic)
-      if (same) return
+        Boolean(prev?.isPublic) === Boolean(next.isPublic) &&
+        JSON.stringify(prev?.regia ?? { items: {} }) === JSON.stringify(next.regia ?? { items: {} })
 
-      if (curTId !== tId) return // tappa cambiata
+      if (same) return
+      if (curTId !== tId) return
+
       await fetch('/api/brackets/state', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-role': 'admin' },
-        body: JSON.stringify({ tournament_id: curTId, state: next }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-role': 'admin',
+        },
+        body: JSON.stringify({
+          tournament_id: curTId,
+          state: next,
+        }),
       })
     } catch {}
   }, 300)
 
   return () => clearTimeout(timer)
-}, [tId, loadedRemote, brackets]) // 👈 niente winnersById qui
+}, [tId, loadedRemote, brackets])
 
 // lettere da usare (come Sorgenti) + limitazione con groupsCount
 const lettersReal = useMemo(() => {
