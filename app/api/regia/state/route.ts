@@ -28,7 +28,7 @@ type Bracket = {
   color: string
   type: 'SE' | 'DE' | 'ITA'
   nTeams: number
-  source: 'gironi' | 'avulsa' | 'eliminati' | 'gironi+eliminati'
+  source: 'gironi' | 'avulsa' | 'eliminati' | 'gironi+eliminati' | 'avulsa+eliminati'
   fromTableId?: string
   r1: { A: string; B: string }[]
   slots: string[]
@@ -178,6 +178,7 @@ function labelBySlot(gs: GroupState, L: string, slot: number) {
   const rid = gs?.assign?.[`${L}-${slot}`] ?? ''
   const raw = rid ? gs?.labels?.[rid] ?? '' : ''
   if (raw) return raw
+  if (rid) return rid
   return `Slot ${slot}`
 }
 
@@ -479,28 +480,145 @@ function makeBracketResolver(
   }
 
   const externalResolve = (token: string): string | undefined => {
-    const m = String(token).trim().match(/^(Perdente|Loser|Vincente|Winner)\s+(.+?)\s+([A-Za-z])?(\d+)$/i)
+    const raw = String(token || '').trim()
+    if (!raw) return undefined
+
+    const m = raw.match(/^(Perdente|Loser|Vincente|Winner)\s+(.+?)\s+([A-Za-z]+)?(\d+)$/i)
     if (!m) return undefined
 
     const kind = m[1].toLowerCase()
-    const titleU = m[2].toUpperCase()
+    const titleU = m[2].trim().toUpperCase()
+    const prefix = String(m[3] || 'R').toUpperCase()
     const num = Number(m[4])
 
     const br = byTitle.get(titleU)
     if (!br || !Number.isFinite(num) || num < 1) return undefined
 
-    const pair = br.r1?.[num - 1]
-    if (!pair) return undefined
+    const code = `${prefix}${num}`
+    const winners = winnersById[br.id] || {}
 
-    const side = (winnersById[br.id] || {})[`R${num}`]
-    if (!side) return undefined
+    const labelsForCode = (code: string): { A: string; B: string } | null => {
+      if (/^R\d+$/i.test(code)) {
+        const idx = Number(code.slice(1)) - 1
+        const pair = br.r1?.[idx]
+        if (!pair) return null
+        return {
+          A: baseResolve(String(pair.A || '').trim()),
+          B: baseResolve(String(pair.B || '').trim()),
+        }
+      }
+
+      if (/^Z\d+$/i.test(code)) {
+        const idx = Number(code.slice(1)) - 1
+        const left = `R${idx * 2 + 1}`
+        const right = `R${idx * 2 + 2}`
+        return {
+          A: winnerOfCode(left) || `Winner ${left} — ${br.title}`,
+          B: winnerOfCode(right) || `Winner ${right} — ${br.title}`,
+        }
+      }
+
+      if (/^Y\d+$/i.test(code)) {
+        const idx = Number(code.slice(1))
+        const z = `Z${idx}`
+        return {
+          A: winnerOfCode(z) || `Winner ${z} — ${br.title}`,
+          B: '—',
+        }
+      }
+
+      if (/^X\d+$/i.test(code)) {
+        const idx = Number(code.slice(1))
+        if (idx === 1) {
+          return {
+            A: loserOfCode('R1') || `Loser R1 — ${br.title}`,
+            B: loserOfCode('R2') || `Loser R2 — ${br.title}`,
+          }
+        }
+        if (idx === 2) {
+          return {
+            A: loserOfCode('R3') || `Loser R3 — ${br.title}`,
+            B: loserOfCode('R4') || `Loser R4 — ${br.title}`,
+          }
+        }
+        return null
+      }
+
+      if (/^W\d+$/i.test(code)) {
+        const idx = Number(code.slice(1))
+        if (idx === 1) {
+          return {
+            A: loserOfCode('Z1') || `Loser Z1 — ${br.title}`,
+            B: winnerOfCode('X1') || `Winner X1 — ${br.title}`,
+          }
+        }
+        if (idx === 2) {
+          return {
+            A: loserOfCode('Z2') || `Loser Z2 — ${br.title}`,
+            B: winnerOfCode('X2') || `Winner X2 — ${br.title}`,
+          }
+        }
+        return null
+      }
+
+      if (/^CO\d+$/i.test(code)) {
+        const idx = Number(code.slice(2))
+        if (idx === 1) {
+          return {
+            A: winnerOfCode('Z1') || `Winner Z1 — ${br.title}`,
+            B: winnerOfCode('W2') || `Winner W2 — ${br.title}`,
+          }
+        }
+        if (idx === 2) {
+          return {
+            A: winnerOfCode('Z2') || `Winner Z2 — ${br.title}`,
+            B: winnerOfCode('W1') || `Winner W1 — ${br.title}`,
+          }
+        }
+        return null
+      }
+
+      if (code === 'F') {
+        return {
+          A: winnerOfCode('CO1') || `Winner CO1 — ${br.title}`,
+          B: winnerOfCode('CO2') || `Winner CO2 — ${br.title}`,
+        }
+      }
+
+      if (code === 'THIRD') {
+        return {
+          A: loserOfCode('CO1') || `Loser CO1 — ${br.title}`,
+          B: loserOfCode('CO2') || `Loser CO2 — ${br.title}`,
+        }
+      }
+
+      return null
+    }
+
+    const winnerOfCode = (code: string): string => {
+      const labels = labelsForCode(code)
+      if (!labels) return ''
+      const side = winners[code]
+      if (side === 'A') return labels.A
+      if (side === 'B') return labels.B
+      return ''
+    }
+
+    const loserOfCode = (code: string): string => {
+      const labels = labelsForCode(code)
+      if (!labels) return ''
+      const side = winners[code]
+      if (side === 'A') return labels.B
+      if (side === 'B') return labels.A
+      return ''
+    }
 
     if (kind === 'vincente' || kind === 'winner') {
-      return side === 'A' ? pair.A : pair.B
+      return winnerOfCode(code) || undefined
     }
+
     if (kind === 'perdente' || kind === 'loser') {
-      const loserSide = side === 'A' ? 'B' : 'A'
-      return loserSide === 'A' ? pair.A : pair.B
+      return loserOfCode(code) || undefined
     }
 
     return undefined
@@ -523,11 +641,12 @@ function phaseLabelSE(round: number, totalRounds: number, idx: number, title: st
 
 function buildSERows(
   bracket: Bracket,
+  allBrackets: Bracket[],
   gs: GroupState,
   winnersById: Record<string, WinnerMap>,
   regiaItems: Record<string, RegiaItemState>
 ): RegiaRow[] {
-  const resolve = makeBracketResolver(gs, [bracket], winnersById)
+  const resolve = makeBracketResolver(gs, allBrackets, winnersById)
   const pow = nextPow2(Math.max(2, Number(bracket.nTeams) || 2))
   const rounds = Math.log2(pow)
   const rows: RegiaRow[] = []
@@ -634,11 +753,12 @@ function buildSERows(
 
 function buildDERows(
   bracket: Bracket,
+  allBrackets: Bracket[],
   gs: GroupState,
   winnersById: Record<string, WinnerMap>,
   regiaItems: Record<string, RegiaItemState>
 ): RegiaRow[] {
-  const resolve = makeBracketResolver(gs, [bracket], winnersById)
+  const resolve = makeBracketResolver(gs, allBrackets, winnersById)
   const W = winnersById[bracket.id] || {}
 
   const rLabel = (i: 0 | 1 | 2 | 3) => {
@@ -825,8 +945,8 @@ function buildAllRows(tournament_id: string, groupState: GroupState, bracketStat
 
   brackets.forEach((b) => {
     let list: RegiaRow[] = []
-    if (b.type === 'SE') list = buildSERows(b, groupState, winnersById, bracketRegia)
-    else if (b.type === 'DE') list = buildDERows(b, groupState, winnersById, bracketRegia)
+    if (b.type === 'SE') list = buildSERows(b, brackets, groupState, winnersById, bracketRegia)
+    else if (b.type === 'DE') list = buildDERows(b, brackets, groupState, winnersById, bracketRegia)
     else list = []
 
     list.forEach((r) => {
@@ -834,7 +954,6 @@ function buildAllRows(tournament_id: string, groupState: GroupState, bracketStat
       rows.push(r)
     })
   })
-
   return sortRows(rows)
 }
 
