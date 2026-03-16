@@ -1287,32 +1287,46 @@ export async function PUT(req: NextRequest) {
   if (!requireAdmin(req)) return new NextResponse('Unauthorized', { status: 401 })
 
   try {
-    const body = (await req.json().catch(() => null)) as
-      | {
-          tournament_id?: string
-          action?: 'save_assignment' | 'set_live' | 'stop_live' | 'close_match'
-          key?: string
-          court?: number | null
-          sequence?: number | null
-        }
-      | null
-
-    const tournament_id = String(body?.tournament_id || '').trim()
-    const action = body?.action
-    const key = String(body?.key || '').trim()
-
-    if (!tournament_id || !action || !key) {
-      return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+   const body = (await req.json().catch(() => null)) as
+  | {
+      tournament_id?: string
+      action?:
+        | 'save_assignment'
+        | 'set_live'
+        | 'stop_live'
+        | 'close_match'
+        | 'reopen_match'
+        | 'reset_tournament_regia'
+      key?: string
+      court?: number | null
+      sequence?: number | null
     }
+  | null
 
-    const s = supabaseAdmin()
-    const { groupState, bracketState, gData, bData } = await loadStates(s, tournament_id)
-    const rows = buildAllRows(tournament_id, groupState, bracketState)
-    const target = readRegiaState(rows, key)
+   const tournament_id = String(body?.tournament_id || '').trim()
+const action = body?.action
+const key = String(body?.key || '').trim()
 
-    if (!target) {
-      return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
-    }
+if (!tournament_id || !action) {
+  return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+}
+
+if (action !== 'reset_tournament_regia' && !key) {
+  return NextResponse.json({ error: 'Missing key' }, { status: 400 })
+}
+
+   const s = supabaseAdmin()
+const { groupState, bracketState, gData, bData } = await loadStates(s, tournament_id)
+const rows = buildAllRows(tournament_id, groupState, bracketState)
+
+const target =
+  action === 'reset_tournament_regia'
+    ? null
+    : readRegiaState(rows, key)
+
+if (action !== 'reset_tournament_regia' && !target) {
+  return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
+}
 
     if (action === 'save_assignment') {
       if (target.status === 'live') {
@@ -1386,12 +1400,58 @@ export async function PUT(req: NextRequest) {
       if (court != null) resequenceCourt(rows, court)
     }
 
-    if (action === 'close_match') {
-      const court = target.court
-      target.status = 'done'
-      if (court != null) resequenceCourt(rows, court)
+if (action === 'close_match') {
+  const court = target.court
+  target.status = 'done'
+  if (court != null) resequenceCourt(rows, court)
+}
+
+if (action === 'reopen_match') {
+  if (!target) {
+    return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
+  }
+
+  if (target.status !== 'done') {
+    return NextResponse.json({ error: 'La partita non è chiusa' }, { status: 400 })
+  }
+
+  target.status = target.court != null ? 'queued' : 'waiting'
+
+  if (target.court != null) {
+    const sameCourt = rows
+      .filter(
+        (r) =>
+          r.key !== target.key &&
+          r.court === target.court &&
+          (r.status === 'queued' || r.status === 'live')
+      )
+      .sort((a, b) => {
+        if (a.status === 'live' && b.status !== 'live') return -1
+        if (b.status === 'live' && a.status !== 'live') return 1
+        return (a.sequence ?? 999) - (b.sequence ?? 999)
+      })
+
+    const liveExists = sameCourt.some((r) => r.status === 'live')
+
+    if (liveExists) {
+      target.sequence = (sameCourt[sameCourt.length - 1]?.sequence ?? 1) + 1
+    } else {
+      target.sequence = target.sequence ?? 1
     }
 
+    resequenceCourt(rows, target.court)
+  } else {
+    target.sequence = null
+  }
+}
+
+if (action === 'reset_tournament_regia') {
+  rows.forEach((r) => {
+    r.court = null
+    r.sequence = null
+    r.status = 'waiting'
+  })
+}
     applyRowsBackToStates(rows, groupState, bracketState)
     await persistStates(s, tournament_id, groupState, bracketState, gData, bData)
 
