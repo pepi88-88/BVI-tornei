@@ -878,20 +878,25 @@ export async function GET(req: NextRequest) {
   if (!requireAdmin(req)) return new NextResponse('Unauthorized', { status: 401 })
 
   try {
-    const sp = new URL(req.url).searchParams
-    const tournament_id = sp.get('tournament_id') || ''
-    if (!tournament_id) {
-      return NextResponse.json({ error: 'Missing tournament_id' }, { status: 400 })
-    }
+   const sp = new URL(req.url).searchParams
+const tournament_ids = sp.getAll('tournament_id').map((x) => String(x || '').trim()).filter(Boolean)
 
+if (!tournament_ids.length) {
+  return NextResponse.json({ error: 'Missing tournament_id' }, { status: 400 })
+}
     const s = supabaseAdmin()
-    const { groupState, bracketState } = await loadStates(s, tournament_id)
-    const rows = buildAllRows(tournament_id, groupState, bracketState)
+    const allRows = []
 
-    return NextResponse.json({
-      ok: true,
-      rows,
-    })
+for (const tournament_id of tournament_ids) {
+  const { groupState, bracketState } = await loadStates(s, tournament_id)
+  const rows = buildAllRows(tournament_id, groupState, bracketState)
+  allRows.push(...rows)
+}
+
+return NextResponse.json({
+  ok: true,
+  rows: allRows,
+})
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Errore GET regia' }, { status: 500 })
   }
