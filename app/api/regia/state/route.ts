@@ -1328,79 +1328,96 @@ if (action !== 'reset_tournament_regia' && !target) {
   return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
 }
 
-    if (action === 'save_assignment') {
-      if (target.status === 'live') {
-        return NextResponse.json({ error: 'Una partita LIVE non può essere spostata' }, { status: 400 })
-      }
+ if (action === 'save_assignment') {
+  if (!target) {
+    return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
+  }
 
-      const nextCourt = body?.court == null ? null : Number(body.court)
-      const nextSequence = body?.sequence == null ? null : Number(body.sequence)
+  if (target.status === 'live') {
+    return NextResponse.json({ error: 'Una partita LIVE non può essere spostata' }, { status: 400 })
+  }
 
-      if (nextCourt == null) {
-        target.court = null
-        target.sequence = null
-        target.status = 'waiting'
-      } else {
-        target.court = nextCourt
-        target.sequence = nextSequence || 1
-        if (target.status === 'waiting' || target.status === 'paused') target.status = 'queued'
+  const nextCourt = body?.court == null ? null : Number(body.court)
+  const nextSequence = body?.sequence == null ? null : Number(body.sequence)
 
-        const sameCourt = rows
-          .filter((r) => r.key !== target.key && r.court === nextCourt && (r.status === 'queued' || r.status === 'live'))
-          .sort((a, b) => {
-            if (a.status === 'live' && b.status !== 'live') return -1
-            if (b.status === 'live' && a.status !== 'live') return 1
-            return (a.sequence ?? 999) - (b.sequence ?? 999)
-          })
+  if (nextCourt == null) {
+    target.court = null
+    target.sequence = null
+    target.status = 'waiting'
+  } else {
+    target.court = nextCourt
+    target.sequence = nextSequence || 1
+    if (target.status === 'waiting' || target.status === 'paused') target.status = 'queued'
 
-        const liveExists = sameCourt.some((r) => r.status === 'live')
-        if (liveExists && target.sequence === 1) {
-          return NextResponse.json({ error: 'Non puoi inserire una partita prima della LIVE del campo' }, { status: 400 })
-        }
-      }
+    const sameCourt = rows
+      .filter((r) => r.key !== target.key && r.court === nextCourt && (r.status === 'queued' || r.status === 'live'))
+      .sort((a, b) => {
+        if (a.status === 'live' && b.status !== 'live') return -1
+        if (b.status === 'live' && a.status !== 'live') return 1
+        return (a.sequence ?? 999) - (b.sequence ?? 999)
+      })
 
-      const affectedCourts = Array.from(new Set(rows.map((r) => r.court).filter((x): x is number => x != null)))
-      affectedCourts.forEach((court) => resequenceCourt(rows, court))
+    const liveExists = sameCourt.some((r) => r.status === 'live')
+    if (liveExists && target.sequence === 1) {
+      return NextResponse.json({ error: 'Non puoi inserire una partita prima della LIVE del campo' }, { status: 400 })
     }
+  }
 
-    if (action === 'set_live') {
-      if (target.court == null) {
-        return NextResponse.json({ error: 'Assegna prima un campo' }, { status: 400 })
-      }
+  const affectedCourts = Array.from(new Set(rows.map((r) => r.court).filter((x): x is number => x != null)))
+  affectedCourts.forEach((court) => resequenceCourt(rows, court))
+}
 
-      const otherLive = rows.find(
-        (r) => r.key !== target.key && r.court === target.court && r.status === 'live'
-      )
-      if (otherLive) {
-        return NextResponse.json({ error: `Sul Campo ${target.court} c'è già una partita LIVE` }, { status: 400 })
-      }
+if (action === 'set_live') {
+  if (!target) {
+    return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
+  }
 
-      target.status = 'live'
-      target.sequence = 1
+  if (target.court == null) {
+    return NextResponse.json({ error: 'Assegna prima un campo' }, { status: 400 })
+  }
 
-      rows
-        .filter((r) => r.key !== target.key && r.court === target.court && (r.status === 'queued' || r.status === 'live'))
-        .sort((a, b) => (a.sequence ?? 999) - (b.sequence ?? 999))
-        .forEach((r, idx) => {
-          r.sequence = idx + 2
-          if (r.status === 'live') r.status = 'queued'
-        })
+  const otherLive = rows.find(
+    (r) => r.key !== target.key && r.court === target.court && r.status === 'live'
+  )
+  if (otherLive) {
+    return NextResponse.json({ error: `Sul Campo ${target.court} c'è già una partita LIVE` }, { status: 400 })
+  }
 
-      resequenceCourt(rows, target.court)
-    }
+  target.status = 'live'
+  target.sequence = 1
 
-    if (action === 'stop_live') {
-      if (target.status !== 'live') {
-        return NextResponse.json({ error: 'La partita non è LIVE' }, { status: 400 })
-      }
-      const court = target.court
-      target.status = 'paused'
-      target.sequence = 0
+  rows
+    .filter((r) => r.key !== target.key && r.court === target.court && (r.status === 'queued' || r.status === 'live'))
+    .sort((a, b) => (a.sequence ?? 999) - (b.sequence ?? 999))
+    .forEach((r, idx) => {
+      r.sequence = idx + 2
+      if (r.status === 'live') r.status = 'queued'
+    })
 
-      if (court != null) resequenceCourt(rows, court)
-    }
+  resequenceCourt(rows, target.court)
+}
+
+if (action === 'stop_live') {
+  if (!target) {
+    return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
+  }
+
+  if (target.status !== 'live') {
+    return NextResponse.json({ error: 'La partita non è LIVE' }, { status: 400 })
+  }
+
+  const court = target.court
+  target.status = 'paused'
+  target.sequence = 0
+
+  if (court != null) resequenceCourt(rows, court)
+}
 
 if (action === 'close_match') {
+  if (!target) {
+    return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
+  }
+
   const court = target.court
   target.status = 'done'
   if (court != null) resequenceCourt(rows, court)
