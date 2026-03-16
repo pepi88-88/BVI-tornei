@@ -28,7 +28,7 @@ const NAV_ITEMS: Item[] = [
   { href: '/admin/crea-tabellone',    label: 'Creazione Tabellone',         roles: ['admin'] },
   { href: '/admin/risultati',         label: 'Risultati Girone/Tabellone',  roles: ['admin','coach'] },
   { href: '/admin/classifica',        label: 'Classifica',                  roles: ['admin','coach'] },
-  { href: '/admin/regia',             label: 'Regia',                       roles: ['admin','coach'] },
+  { href: '/admin/tornei/test/regia',             label: 'Regia',                       roles: ['admin','coach'] },
 //{ href: '/admin/stampa',            label: 'Stampa',                      roles: ['admin'] },
   { href: '__exit__',                 label: 'Esci',                        roles: 'any' },
 ]
