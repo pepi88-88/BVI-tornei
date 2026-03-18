@@ -14,7 +14,41 @@ type GlobalPlayer = { id: string; display_name: string }
 
 const fetcher = (u: string) => fetch(u).then(r => r.json()).catch(() => null)
 const asNum = (v: any, d=0) => Number.isFinite(Number(v)) ? Number(v) : d
+function rowPremiumClass(rank: number) {
+  if (rank === 1) {
+    return [
+      'bg-[linear-gradient(90deg,rgba(255,145,0,0.38)_0%,rgba(255,145,0,0.20)_22%,rgba(255,145,0,0.08)_55%,rgba(0,0,0,0)_100%)]',
+      'border-t border-orange-400/60',
+      'shadow-[inset_0_1px_0_rgba(255,190,92,0.35)]',
+    ].join(' ')
+  }
 
+  if (rank >= 2 && rank <= 8) {
+    return [
+      'bg-[linear-gradient(90deg,rgba(0,122,255,0.30)_0%,rgba(0,122,255,0.16)_24%,rgba(0,122,255,0.06)_55%,rgba(0,0,0,0)_100%)]',
+      'border-t border-sky-500/30',
+      'shadow-[inset_0_1px_0_rgba(125,190,255,0.10)]',
+    ].join(' ')
+  }
+
+  return 'border-t border-neutral-800'
+}
+
+function totalCellClass(rank: number) {
+  if (rank === 1) return 'text-orange-300'
+  if (rank >= 2 && rank <= 8) return 'text-sky-300'
+  return 'text-white'
+}
+
+function rankBadgeClass(rank: number) {
+  if (rank === 1) {
+    return 'bg-orange-500/20 text-orange-200 border border-orange-400/40'
+  }
+  if (rank >= 2 && rank <= 8) {
+    return 'bg-sky-500/20 text-sky-200 border border-sky-400/30'
+  }
+  return 'bg-neutral-800 text-neutral-200 border border-neutral-700'
+}
 export default function ClassificaPage() {
   /* ------------------------ Stato base ------------------------ */
   const [gender, setGender] = React.useState<'M'|'F'>('M')
@@ -77,6 +111,7 @@ const { data: stRes, mutate: refetchStages } = useSWR(
   fetcher,
   { revalidateOnFocus:false }
 )
+
 const stages: Stage[] = stRes?.items ?? []
 
 const { data: totRes, mutate: refetchTotals } = useSWR(
@@ -175,12 +210,14 @@ const createEdition = async () => {
 React.useEffect(() => {
   const q = playerInput.trim()
   if (!q) { setSuggestions([]); setSuggestOpen(false); return }
+
   const t = setTimeout(async () => {
     try {
       setIsSearching(true)
       const r = await fetch(`/api/players?search=${encodeURIComponent(q)}`, { cache:'no-store' })
       const j = await r.json().catch(()=>({}))
       const items: GlobalPlayer[] = j?.items ?? []
+
       setSuggestions(
         items
           .filter(gp =>
@@ -191,13 +228,15 @@ React.useEffect(() => {
       )
       setSuggestOpen(true)
     } catch {
-      setSuggestions([]); setSuggestOpen(false)
+      setSuggestions([])
+      setSuggestOpen(false)
     } finally {
       setIsSearching(false)
     }
   }, 220)
+
   return () => clearTimeout(t)
-}, [playerInput])
+}, [playerInput, existingIds, existingNames])
 
 function normalizeName(s: string) {
   return String(s || '')
@@ -588,114 +627,109 @@ const totalsSorted = React.useMemo(() => {
               </tr>
             </thead>
 
-            <tbody>
-              {totalsSorted.map((r, i) => (
-                <tr
-                  key={r.player_id}
-                  className={`border-t border-neutral-800 ${
-                    i === 0 ? 'bg-yellow-500/10' : i > 0 && i < 8 ? 'bg-emerald-500/5' : ''
-                  }`}
-                >
-                  <td className="py-1">
-                    {i + 1}
-                    {i === 0 && <span className="ml-1">👑</span>}
-                  </td>
+           <tbody>
+  {totalsSorted.map((r, i) => (
+    <tr
+      key={r.player_id}
+      className={rowPremiumClass(i + 1)}
+    >
+      <td className="py-1">
+        <span
+          className={`inline-flex min-w-[28px] h-7 items-center justify-center rounded-md text-sm font-semibold tabular-nums ${rankBadgeClass(i + 1)}`}
+        >
+          {i + 1}
+        </span>
+      </td>
 
-                  <td className="py-1 truncate">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate">{r.display_name}</span>
-                      <button
-                        className="btn btn-xs"
-                        onClick={async () => {
-                          if (!editionId) return
-                          if (
-                            !confirm(
-                              `Eliminare “${r.display_name}” dal tour? Saranno rimossi anche i suoi risultati.`
-                            )
-                          )
-                            return
-                          try {
-                            const del = await fetch('/api/ranking/players', {
-                              method: 'DELETE',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ edition_id: editionId, player_id: r.player_id })
-                            })
-                            if (!del.ok) throw new Error(await del.text())
-                            await Promise.all([refetchPlayers(), refetchTotals()])
-                          } catch (e: any) {
-                            alert('Errore eliminazione: ' + (e?.message || ''))
-                          }
-                        }}
-                      >
-                        Elimina
-                      </button>
-                    </div>
-                  </td>
+      <td className="py-1 truncate">
+        <div className="flex items-center gap-2">
+          <span className="truncate">{r.display_name}</span>
+          <button
+            className="btn btn-xs"
+            onClick={async () => {
+              if (!editionId) return
+              if (
+                !confirm(
+                  `Eliminare “${r.display_name}” dal tour? Saranno rimossi anche i suoi risultati.`
+                )
+              ) return
 
-                  {/* Totale subito dopo il nome (senza decimali) */}
-                  <td className="py-1 text-right font-semibold pl-3 pr-4">
-                    {new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(
-                      Number(
-                        totalsSorted.find(x => x.player_id === r.player_id)?.client_total || 0
-                      )
-                    )}
-                  </td>
+              try {
+                const del = await fetch('/api/ranking/players', {
+                  method: 'DELETE',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ edition_id: editionId, player_id: r.player_id })
+                })
+                if (!del.ok) throw new Error(await del.text())
+                await Promise.all([refetchPlayers(), refetchTotals()])
+              } catch (e: any) {
+                alert('Errore eliminazione: ' + (e?.message || ''))
+              }
+            }}
+          >
+            Elimina
+          </button>
+        </div>
+      </td>
 
-                  {/* Celle per ogni TAPPA: punti + select sulla stessa riga e centrati */}
-                  {stages.map((st, idx2) => {
-                    const maxPos = Math.max(1, Number(st.total_teams || 0))
-                    const cur = placementsByStage[st.id]?.[r.player_id] ?? '-'
-                    const posNum = Number(cur)
-                    const pts =
-                      cur !== '-' && Number.isFinite(posNum)
-                        ? pointsOfBucket(
-                            posNum,
-                            maxPos,
-                            Number(st.multiplier || 1),
-                            legendSet
-                          )
-                        : ''
+    <td className={`py-1 text-right font-extrabold pl-3 pr-4 ${totalCellClass(i + 1)}`}>
+  {new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(
+    Number(r.client_total || 0)
+  )}
+</td>
 
-                    return (
-                      <td
-                        key={`${st.id}-${r.player_id}`}
-                        className={`py-1 ${idx2 > 0 ? 'border-l border-neutral-800' : ''}`}
-                      >
-                        <div className="flex items-center justify-center gap-3">
-                          {/* punteggio a sinistra */}
-                          <div className="w-10 text-right tabular-nums">
-                            {pts !== '' ? pts : '—'}
-                          </div>
+      {stages.map((st, idx2) => {
+        const maxPos = Math.max(1, Number(st.total_teams || 0))
+        const cur = placementsByStage[st.id]?.[r.player_id] ?? '-'
+        const posNum = Number(cur)
+        const pts =
+          cur !== '-' && Number.isFinite(posNum)
+            ? pointsOfBucket(
+                posNum,
+                maxPos,
+                Number(st.multiplier || 1),
+                legendSet
+              )
+            : ''
 
-                          {/* select posizione (larga per 2 cifre) */}
-                          <select
-                            className="input w-20 text-center px-0"
-                            value={cur}
-                            onChange={e => setPlacement(st.id, r.player_id, e.target.value)}
-                            title="Posizione"
-                          >
-                            <option value="-">-</option>
-                            {Array.from({ length: maxPos }, (_, n) => n + 1).map(n => (
-                              <option key={n} value={String(n)}>
-                                {n}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
+        return (
+          <td
+            key={`${st.id}-${r.player_id}`}
+            className={`py-1 ${idx2 > 0 ? 'border-l border-neutral-800' : ''}`}
+          >
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-10 text-right tabular-nums">
+                {pts !== '' ? pts : '—'}
+              </div>
 
-              {totalsSorted.length === 0 && (
-                <tr>
-                  <td colSpan={3 + stages.length} className="py-4 text-center text-neutral-500">
-                    Nessun dato
-                  </td>
-                </tr>
-              )}
-            </tbody>
+              <select
+                className="input w-20 text-center px-0"
+                value={cur}
+                onChange={e => setPlacement(st.id, r.player_id, e.target.value)}
+                title="Posizione"
+              >
+                <option value="-">-</option>
+                {Array.from({ length: maxPos }, (_, n) => n + 1).map(n => (
+                  <option key={n} value={String(n)}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </td>
+        )
+      })}
+    </tr>
+  ))}
+
+  {totalsSorted.length === 0 && (
+    <tr>
+      <td colSpan={3 + stages.length} className="py-4 text-center text-neutral-500">
+        Nessun dato
+      </td>
+    </tr>
+  )}
+</tbody>
           </table>
         </div>
       </div>
