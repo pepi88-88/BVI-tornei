@@ -12,13 +12,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok:false, error:'edition_id required' }, { status:400 })
     }
 
-    const { data, error } = await supabase
-      .from('rank_stage')
-      .select('id, edition_id, name, day, month, multiplier, total_teams, created_at')
-      .eq('edition_id', edition_id)
-      .order('month', { ascending: true })
-      .order('day',   { ascending: true })
-      .order('created_at', { ascending: true })
+   const { data, error } = await supabase
+  .from('rank_stage')
+  .select('id, edition_id, name, day, month, multiplier, total_teams, created_at')
+  .eq('edition_id', edition_id)
+  .order('created_at', { ascending: false })
 
     if (error) {
       // esponiamo l’errore per capire subito la causa (RLS/permessi/colonne)
@@ -76,4 +74,3 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok:false, error:String(e?.message || e) }, { status:500 })
   }
 }
-
