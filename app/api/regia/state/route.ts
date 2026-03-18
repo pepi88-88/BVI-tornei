@@ -1175,7 +1175,43 @@ async function loadStates(s: ReturnType<typeof supabaseAdmin>, tournament_id: st
 
   return { groupState, bracketState, gData, bData }
 }
+function resolvePoolLabel(
+  gs: GroupState,
+  L: string,
+  label: string
+): string {
+  const raw = String(label || '').trim()
+  if (!raw) return '—'
 
+  const isPool4 = fmtOf(gs, L) === 'pool' && capOf(gs, L) === 4
+  if (!isPool4) return lastSurnames(raw)
+
+  const w1 = matchWinnerFromScores(gs, L, 0).winner
+  const w2 = matchWinnerFromScores(gs, L, 1).winner
+
+  const s1 = poolPairs.semi1
+  const s2 = poolPairs.semi2
+
+  const winnerG1 = w1 ? (w1 === 'A' ? labelBySlot(gs, L, s1[0]) : labelBySlot(gs, L, s1[1])) : ''
+  const loserG1  = w1 ? (w1 === 'A' ? labelBySlot(gs, L, s1[1]) : labelBySlot(gs, L, s1[0])) : ''
+
+  const winnerG2 = w2 ? (w2 === 'A' ? labelBySlot(gs, L, s2[0]) : labelBySlot(gs, L, s2[1])) : ''
+  const loserG2  = w2 ? (w2 === 'A' ? labelBySlot(gs, L, s2[1]) : labelBySlot(gs, L, s2[0])) : ''
+
+  if (/^Vincente G1$/i.test(raw)) return winnerG1 ? lastSurnames(winnerG1) : '—'
+  if (/^Vincente G2$/i.test(raw)) return winnerG2 ? lastSurnames(winnerG2) : '—'
+  if (/^Perdente G1$/i.test(raw)) return loserG1 ? lastSurnames(loserG1) : '—'
+  if (/^Perdente G2$/i.test(raw)) return loserG2 ? lastSurnames(loserG2) : '—'
+
+  return lastSurnames(raw)
+}
+
+function resolveGroupRowTeams(gs: GroupState, L: string, r: ScheduleRow) {
+  return {
+    teamA: resolvePoolLabel(gs, L, r.labelA),
+    teamB: resolvePoolLabel(gs, L, r.labelB),
+  }
+}
 function buildAllRows(tournament_id: string, groupState: GroupState, bracketState: BracketState): RegiaRow[] {
   const rows: RegiaRow[] = []
   const groupRegia = groupState?.regia?.items || {}
@@ -1187,18 +1223,20 @@ function buildAllRows(tournament_id: string, groupState: GroupState, bracketStat
     matchRows.forEach((r) => {
       const key = `girone:${L}:${r.matchIdx}`
       const reg = groupRegia[key] || { court: null, sequence: null, status: 'waiting' as RegiaStatus }
-      rows.push({
-        key,
-        sourceType: 'girone',
-        tournament_id,
-        phase: `Girone ${L}`,
-        teamA: lastSurnames(r.labelA),
-        teamB: lastSurnames(r.labelB),
-        scheduledTime: groupState?.times?.[L]?.[r.matchIdx] || '',
-        court: reg.court ?? null,
-        sequence: reg.sequence ?? null,
-        status: reg.status ?? 'waiting',
-      })
+      const resolved = resolveGroupRowTeams(groupState, L, r)
+
+rows.push({
+  key,
+  sourceType: 'girone',
+  tournament_id,
+  phase: `Girone ${L}`,
+  teamA: resolved.teamA,
+  teamB: resolved.teamB,
+  scheduledTime: groupState?.times?.[L]?.[r.matchIdx] || '',
+  court: reg.court ?? null,
+  sequence: reg.sequence ?? null,
+  status: reg.status ?? 'waiting',
+})
     })
   }
 
