@@ -19,14 +19,75 @@ type RegiaRow = {
 }
 
 type ViewMode = 'all' | 'live' | 'live_plus_2'
+type OrderMode = 'regia' | 'phase'
 type TournamentOption = {
   id: string
   name: string
   date?: string
 }
+function rowUiKey(row: RegiaRow) {
+  return `${row.tournament_id}::${row.key}`
+}
 const COURTS = Array.from({ length: 10 }, (_, i) => i + 1)
 const SEQ_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1)
+function getBracketStageRank(phase: string) {
+  const p = String(phase || '').toLowerCase()
 
+  if (p.includes('girone')) return 10
+
+  if (p.includes('sedices')) return 20
+  if (p.includes('ottav')) return 30
+  if (p.includes('quarto')) return 40
+  if (p.includes('semif')) return 50
+  if (p.includes('3°') || p.includes('3 / 4') || p.includes('3° / 4°') || p.includes('finalina')) return 60
+  if (p.includes('finale')) return 70
+
+  const turnoMatch = p.match(/turno\s+(\d+)/i)
+  if (turnoMatch) {
+    const n = Number(turnoMatch[1])
+    return 20 + n
+  }
+
+  if (p.includes('upper')) return 45
+  if (p.includes('losers')) return 46
+
+  return 999
+}
+
+function getGroupLetterRank(phase: string) {
+  const m = String(phase || '').match(/girone\s+([A-Za-z]+)/i)
+  if (!m) return 999
+  return m[1].toUpperCase().charCodeAt(0)
+}
+
+function getPhaseOrderValue(row: RegiaRow) {
+  return getBracketStageRank(row.phase)
+}
+
+function sortRowsByPhase(rows: RegiaRow[]) {
+  return [...rows].sort((a, b) => {
+    const ta = a.tournament_id.localeCompare(b.tournament_id)
+    if (ta !== 0) return ta
+
+    const pa = getPhaseOrderValue(a)
+    const pb = getPhaseOrderValue(b)
+    if (pa !== pb) return pa - pb
+
+    const ga = getGroupLetterRank(a.phase)
+    const gb = getGroupLetterRank(b.phase)
+    if (ga !== gb) return ga - gb
+
+    const ac = a.court == null ? 999 : a.court
+    const bc = b.court == null ? 999 : b.court
+    if (ac !== bc) return ac - bc
+
+    const as = a.sequence == null ? 999 : a.sequence
+    const bs = b.sequence == null ? 999 : b.sequence
+    if (as !== bs) return as - bs
+
+    return a.key.localeCompare(b.key)
+  })
+}
 export default function RegiaPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -38,15 +99,18 @@ const initialTournamentId = searchParams.get('tournament_id') || routeTour
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('all')
-  const [drafts, setDrafts] = useState<Record<string, { court: string; sequence: string }>>({})
+  const [drafts, setDrafts] = useState<
+  Record<string, { court: string; sequence: string; scheduledTime: string }>
+>({})
+const [dirtyKeys, setDirtyKeys] = useState<Record<string, true>>({})
 const [availableTournaments, setAvailableTournaments] = useState<TournamentOption[]>([])
-
+const [orderMode, setOrderMode] = useState<OrderMode>('regia')
 const [draftTournamentA, setDraftTournamentA] = useState<string>('')
 const [draftTournamentB, setDraftTournamentB] = useState<string>('')
 
 const [activeTournamentA, setActiveTournamentA] = useState<string>('')
 const [activeTournamentB, setActiveTournamentB] = useState<string>('')
-  
+  const dirtyCount = useMemo(() => Object.keys(dirtyKeys).length, [dirtyKeys])
 const tournamentNameById = useMemo(() => {
   return Object.fromEntries(
     availableTournaments.map((t) => [t.id, t.name])
@@ -73,19 +137,23 @@ const STORAGE_KEY = 'regia:selectedTournaments'
     const items: RegiaRow[] = json?.rows || []
     setRows(items)
 
-    const nextDrafts: Record<string, { court: string; sequence: string }> = {}
-    items.forEach((r) => {
-      nextDrafts[r.key] = {
-        court: r.court == null ? '' : String(r.court),
-        sequence:
-          r.status === 'paused'
-            ? '0'
-            : r.sequence == null
-            ? ''
-            : String(r.sequence),
-      }
-    })
-    setDrafts(nextDrafts)
+   const nextDrafts: Record<string, { court: string; sequence: string; scheduledTime: string }> = {}
+items.forEach((r) => {
+  const id = rowUiKey(r)
+
+  nextDrafts[id] = {
+    court: r.court == null ? '' : String(r.court),
+    sequence:
+      r.status === 'paused'
+        ? '0'
+        : r.sequence == null
+        ? ''
+        : String(r.sequence),
+    scheduledTime: r.scheduledTime || '',
+  }
+})
+setDrafts(nextDrafts)
+setDirtyKeys({})
   } finally {
     setLoading(false)
   }
@@ -96,16 +164,27 @@ const STORAGE_KEY = 'regia:selectedTournaments'
   void loadData()
 }, [activeTournamentA, activeTournamentB])
 
-  function setDraft(key: string, patch: Partial<{ court: string; sequence: string }>) {
-    setDrafts((prev) => ({
-      ...prev,
-      [key]: {
-        court: prev[key]?.court ?? '',
-        sequence: prev[key]?.sequence ?? '',
-        ...patch,
-      },
-    }))
-  }
+ function setDraft(
+  row: RegiaRow,
+  patch: Partial<{ court: string; sequence: string; scheduledTime: string }>
+) {
+  const id = rowUiKey(row)
+
+  setDrafts((prev) => ({
+    ...prev,
+    [id]: {
+      court: prev[id]?.court ?? '',
+      sequence: prev[id]?.sequence ?? '',
+      scheduledTime: prev[id]?.scheduledTime ?? '',
+      ...patch,
+    },
+  }))
+
+  setDirtyKeys((prev) => ({
+    ...prev,
+    [id]: true,
+  }))
+}
 async function loadTournamentOptions() {
   try {
     const res = await fetch('/api/tournaments', { cache: 'no-store' })
@@ -141,19 +220,37 @@ async function loadTournamentOptions() {
     setActiveTournamentB('')
   }
 }, [initialTournamentId])
-  function tournamentIdForKey(key: string) {
-  const row = rows.find((r) => r.key === key)
-  return row?.tournament_id || ''
-}
+  
 async function mutate(
-  key: string | null,
-  action: 'save_assignment' | 'set_live' | 'stop_live' | 'close_match' | 'reopen_match' | 'reset_tournament_regia',
-  extra?: { court?: number | null; sequence?: number | null; tournament_id?: string }
+  row: RegiaRow | null,
+  action:
+    | 'save_assignment'
+    | 'save_assignment_batch'
+    | 'set_live'
+    | 'stop_live'
+    | 'close_match'
+    | 'reopen_match'
+    | 'reset_tournament_regia',
+  extra?: {
+    court?: number | null
+    sequence?: number | null
+    scheduledTime?: string
+    tournament_id?: string
+    changes?: Array<{
+      key: string
+      court?: number | null
+      sequence?: number | null
+      scheduledTime?: string
+    }>
+  }
 ) {
-  const targetTournamentId = extra?.tournament_id || (key ? tournamentIdForKey(key) : '')
+  const targetTournamentId = extra?.tournament_id || row?.tournament_id || ''
   if (!targetTournamentId) return
 
-  setSavingKey(key || '__bulk__')
+  const rowKey = row?.key ?? null
+  const busyId = row ? rowUiKey(row) : '__bulk__'
+
+  setSavingKey(busyId)
 
   try {
     const res = await fetch('/api/regia/state', {
@@ -165,7 +262,7 @@ async function mutate(
       body: JSON.stringify({
         tournament_id: targetTournamentId,
         action,
-        key: key || undefined,
+        key: rowKey || undefined,
         ...extra,
       }),
     })
@@ -246,29 +343,88 @@ function applyTournamentSelection() {
     )
   } catch {}
 }
-  async function saveAssignment(row: RegiaRow) {
-    if (row.status === 'live') {
-      alert('Una partita LIVE non può essere spostata.')
-      return
-    }
 
-    const court = drafts[row.key]?.court ? Number(drafts[row.key].court) : null
-    const sequence =
-      drafts[row.key]?.sequence && drafts[row.key].sequence !== '0'
-        ? Number(drafts[row.key].sequence)
-        : null
-
-    const changed = row.court !== court || row.sequence !== sequence || (court == null && row.status !== 'waiting')
-    if (!changed) return
-
-    if (row.court != null || row.sequence != null) {
-      const ok = window.confirm('Stai modificando un’assegnazione esistente. Continuare?')
-      if (!ok) return
-    }
-
-    await mutate(row.key, 'save_assignment', { court, sequence })
+  async function saveAllAssignments() {
+  const dirtyRows = rows.filter((row) => dirtyKeys[rowUiKey(row)])
+  if (!dirtyRows.length) {
+    alert('Nessuna modifica da salvare.')
+    return
   }
 
+  const byTournament: Record<
+    string,
+    Array<{ key: string; court?: number | null; sequence?: number | null; scheduledTime?: string }>
+  > = {}
+
+  for (const row of dirtyRows) {
+    if (row.status === 'live') continue
+
+    const id = rowUiKey(row)
+    const draft = drafts[id]
+    if (!draft) continue
+
+    const court = draft.court ? Number(draft.court) : null
+    const sequence =
+      draft.sequence && draft.sequence !== '0'
+        ? Number(draft.sequence)
+        : null
+    const scheduledTime = draft.scheduledTime ?? ''
+
+    const changed =
+      row.court !== court ||
+      row.sequence !== sequence ||
+      row.scheduledTime !== scheduledTime ||
+      (court == null && row.status !== 'waiting')
+
+    if (!changed) continue
+
+    if (!byTournament[row.tournament_id]) {
+      byTournament[row.tournament_id] = []
+    }
+
+    byTournament[row.tournament_id].push({
+      key: row.key,
+      court,
+      sequence,
+      scheduledTime,
+    })
+  }
+
+  const tournamentIds = Object.keys(byTournament)
+  if (!tournamentIds.length) {
+    alert('Nessuna modifica valida da salvare.')
+    return
+  }
+
+  setSavingKey('__bulk__')
+  try {
+    for (const tournamentId of tournamentIds) {
+      const changes = byTournament[tournamentId]
+      const res = await fetch('/api/regia/state', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-role': 'admin',
+        },
+        body: JSON.stringify({
+          tournament_id: tournamentId,
+          action: 'save_assignment_batch',
+          changes,
+        }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        alert(json?.error || 'Errore salvataggio batch')
+        return
+      }
+    }
+
+    await loadData()
+  } finally {
+    setSavingKey(null)
+  }
+}
   const activeRows = useMemo(
     () => rows.filter((r) => r.status !== 'done' && r.status !== 'paused'),
     [rows]
@@ -284,42 +440,46 @@ function applyTournamentSelection() {
     [rows]
   )
 
-  const visibleActiveRows = useMemo(() => {
-    if (viewMode === 'all') return activeRows
+ const visibleActiveRows = useMemo(() => {
+  if (orderMode === 'phase') {
+    return sortRowsByPhase(activeRows)
+  }
 
-    const grouped = new Map<number, RegiaRow[]>()
+  if (viewMode === 'all') return activeRows
 
-    activeRows
-      .filter((r) => r.court != null)
-      .forEach((r) => {
-        const court = r.court as number
-        const arr = grouped.get(court) ?? []
-        arr.push(r)
-        grouped.set(court, arr)
-      })
+  const grouped = new Map<number, RegiaRow[]>()
 
-    const out: RegiaRow[] = []
+  activeRows
+    .filter((r) => r.court != null)
+    .forEach((r) => {
+      const court = r.court as number
+      const arr = grouped.get(court) ?? []
+      arr.push(r)
+      grouped.set(court, arr)
+    })
 
-    Array.from(grouped.entries())
-      .sort((a, b) => a[0] - b[0])
-      .forEach(([, list]) => {
-        const sorted = [...list].sort((a, b) => (a.sequence ?? 999) - (b.sequence ?? 999))
-        const liveIdx = sorted.findIndex((r) => r.status === 'live')
+  const out: RegiaRow[] = []
 
-        if (viewMode === 'live') {
-          if (liveIdx >= 0) out.push(sorted[liveIdx])
-          else if (sorted[0]) out.push(sorted[0])
-        }
+  Array.from(grouped.entries())
+    .sort((a, b) => a[0] - b[0])
+    .forEach(([, list]) => {
+      const sorted = [...list].sort((a, b) => (a.sequence ?? 999) - (b.sequence ?? 999))
+      const liveIdx = sorted.findIndex((r) => r.status === 'live')
 
-        if (viewMode === 'live_plus_2') {
-          if (liveIdx >= 0) out.push(...sorted.slice(liveIdx, liveIdx + 3))
-          else out.push(...sorted.slice(0, 3))
-        }
-      })
+      if (viewMode === 'live') {
+        if (liveIdx >= 0) out.push(sorted[liveIdx])
+        else if (sorted[0]) out.push(sorted[0])
+      }
 
-    const unassigned = activeRows.filter((r) => r.court == null)
-    return [...out, ...unassigned]
-  }, [activeRows, viewMode])
+      if (viewMode === 'live_plus_2') {
+        if (liveIdx >= 0) out.push(...sorted.slice(liveIdx, liveIdx + 3))
+        else out.push(...sorted.slice(0, 3))
+      }
+    })
+
+  const unassigned = activeRows.filter((r) => r.court == null)
+  return [...out, ...unassigned]
+}, [activeRows, viewMode, orderMode])
 
  function courtBadge(court: number | null) {
   if (court === 1) return 'border-blue-500 bg-blue-950/40 text-blue-300'
@@ -444,7 +604,29 @@ function rowBg(status: RegiaStatus, tournamentId?: string) {
           </div>
 
          <div className="flex flex-wrap gap-2">
+<button
+  type="button"
+  onClick={() => setOrderMode('regia')}
+  className={`rounded-xl px-3 py-2 text-sm font-medium ${
+    orderMode === 'regia'
+      ? 'bg-white text-black'
+      : 'border border-neutral-700 bg-neutral-900 text-neutral-300'
+  }`}
+>
+  Ordine regia
+</button>
 
+<button
+  type="button"
+  onClick={() => setOrderMode('phase')}
+  className={`rounded-xl px-3 py-2 text-sm font-medium ${
+    orderMode === 'phase'
+      ? 'bg-white text-black'
+      : 'border border-neutral-700 bg-neutral-900 text-neutral-300'
+  }`}
+>
+  Ordina per fase
+</button>
 <button
 type="button"
 onClick={() => setViewMode('live')}
@@ -480,7 +662,14 @@ viewMode === 'all'
 >
 TUTTE
 </button>
-
+<button
+  type="button"
+  onClick={() => void saveAllAssignments()}
+  disabled={savingKey === '__bulk__' || dirtyCount === 0}
+  className="rounded-xl border border-emerald-700 bg-emerald-950/40 px-3 py-2 text-sm font-medium text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  Salva modifiche {dirtyCount > 0 ? `(${dirtyCount})` : ''}
+</button>
 <button
 type="button"
 onClick={() => void loadData()}
@@ -563,9 +752,9 @@ Pulisci regia
                 </tr>
               ) : (
                 visibleActiveRows.map((row) => {
-                  const busy = savingKey === row.key
+                  const busy = savingKey === '__bulk__' || savingKey === rowUiKey(row)
                   return (
-                 <tr key={row.key} className={`border-b border-neutral-800 ${rowBg(row.status, row.tournament_id)}`}>
+                 <tr key={rowUiKey(row)} className={`border-b border-neutral-800 ${rowBg(row.status, row.tournament_id)}`}>
   <td className="px-4 py-3 align-top">
    <span
   className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tournamentBadge(row.tournament_id)}`}
@@ -592,63 +781,67 @@ Pulisci regia
                         </div>
                       </td>
                       <td className="px-4 py-3 align-top">
-                        {row.status === 'live' ? (
-                          <div className="text-sm text-neutral-500">
-                            Campo e sequenza bloccati perché la partita è LIVE
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <select
-                              value={drafts[row.key]?.court ?? ''}
-                              onChange={(e) => {
-                                const nextCourt = e.target.value
-                                setDraft(row.key, {
-                                  court: nextCourt,
-                                  sequence: nextCourt ? String((row.sequence ?? 0) || 1) : '',
-                                })
-                              }}
-                              disabled={busy}
-                              className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
-                            >
-                              <option value="">-</option>
-                              {COURTS.map((court) => (
-                                <option key={court} value={court}>
-                                  Campo {court}
-                                </option>
-                              ))}
-                            </select>
+  {row.status === 'live' ? (
+    <div className="text-sm text-neutral-500">
+      Campo, sequenza e orario bloccati perché la partita è LIVE
+    </div>
+  ) : (
+    <div className="flex flex-wrap items-center gap-2">
+      {row.sourceType === 'bracket' ? (
+        <input
+          type="time"
+          value={drafts[rowUiKey(row)]?.scheduledTime ?? ''}
+          onChange={(e) => setDraft(row, { scheduledTime: e.target.value })}
+          disabled={busy}
+          className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
+        />
+      ) : null}
 
-                            <select
-                              value={drafts[row.key]?.sequence ?? ''}
-                              onChange={(e) => setDraft(row.key, { sequence: e.target.value })}
-                              disabled={busy || !(drafts[row.key]?.court ?? '')}
-                              className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
-                            >
-                              <option value="">Seq</option>
-                              {SEQ_OPTIONS.map((n) => (
-                                <option key={n} value={n}>
-                                  {n}
-                                </option>
-                              ))}
-                            </select>
+      <select
+        value={drafts[rowUiKey(row)]?.court ?? ''}
+        onChange={(e) => {
+          const nextCourt = e.target.value
+          const id = rowUiKey(row)
 
-                            <button
-                              type="button"
-                              onClick={() => void saveAssignment(row)}
-                              disabled={busy}
-                             className="rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              OK
-                            </button>
-                          </div>
-                        )}
-                      </td>
+          setDraft(row, {
+            court: nextCourt,
+            sequence: nextCourt ? (drafts[id]?.sequence ?? '') : '',
+          })
+        }}
+        disabled={busy}
+        className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
+      >
+        <option value="">-</option>
+        {COURTS.map((court) => (
+          <option key={court} value={court}>
+            Campo {court}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={drafts[rowUiKey(row)]?.sequence ?? ''}
+        onChange={(e) => setDraft(row, { sequence: e.target.value })}
+        disabled={busy || !(drafts[rowUiKey(row)]?.court ?? '')}
+        className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
+      >
+        <option value="">Seq</option>
+        {SEQ_OPTIONS.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </div>
+  )}
+</td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex flex-wrap items-center gap-2">
+                       
                           {row.status !== 'live' ? (
                             <button
                               type="button"
-                              onClick={() => void mutate(row.key, 'set_live')}
+                              onClick={() => void mutate(row, 'set_live')}
                               disabled={busy || row.court == null}
                               className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -659,7 +852,7 @@ Pulisci regia
                               type="button"
                               onClick={() => {
                                 const ok = window.confirm('Togliere la partita da LIVE e metterla in sospesa?')
-                                if (ok) void mutate(row.key, 'stop_live')
+                                if (ok) void mutate(row, 'stop_live')
                               }}
                               disabled={busy}
                               className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -672,7 +865,7 @@ Pulisci regia
                             type="button"
                             onClick={() => {
                               const ok = window.confirm('Segnare la partita come chiusa?')
-                              if (ok) void mutate(row.key, 'close_match')
+                              if (ok) void mutate(row, 'close_match')
                             }}
                             disabled={busy || row.status === 'waiting'}
                            className="rounded-lg bg-neutral-800 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -710,9 +903,9 @@ Pulisci regia
               </thead>
               <tbody>
                 {pausedRows.map((row) => {
-                  const busy = savingKey === row.key
+                  const busy = savingKey === '__bulk__' || savingKey === rowUiKey(row)
                   return (
-                  <tr key={row.key} className="border-b border-neutral-800 bg-amber-950/20">
+                  <tr key={rowUiKey(row)} className="border-b border-neutral-800 bg-amber-950/20">
                     <td className="px-4 py-3">
   <span
   className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tournamentBadge(row.tournament_id)}`}
@@ -729,9 +922,18 @@ Pulisci regia
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-2">
+                          {row.sourceType === 'bracket' ? (
+  <input
+    type="time"
+    value={drafts[rowUiKey(row)]?.scheduledTime ?? ''}
+    onChange={(e) => setDraft(row, { scheduledTime: e.target.value })}
+    disabled={busy}
+    className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
+  />
+) : null}
                           <select
-                            value={drafts[row.key]?.court ?? ''}
-                            onChange={(e) => setDraft(row.key, { court: e.target.value })}
+                            value={drafts[rowUiKey(row)]?.court ?? ''}
+                            onChange={(e) => setDraft(row, { court: e.target.value })}
                             disabled={busy}
                            className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
                           >
@@ -744,9 +946,9 @@ Pulisci regia
                           </select>
 
                           <select
-                            value={drafts[row.key]?.sequence === '0' ? '' : drafts[row.key]?.sequence ?? ''}
-                            onChange={(e) => setDraft(row.key, { sequence: e.target.value })}
-                            disabled={busy || !(drafts[row.key]?.court ?? '')}
+                            value={drafts[rowUiKey(row)]?.sequence === '0' ? '' : drafts[rowUiKey(row)]?.sequence ?? ''}
+                            onChange={(e) => setDraft(row, { sequence: e.target.value })}
+                            disabled={busy || !(drafts[rowUiKey(row)]?.court ?? '')}
                            className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-white"
                           >
                             <option value="">Seq</option>
@@ -757,14 +959,7 @@ Pulisci regia
                             ))}
                           </select>
 
-                          <button
-                            type="button"
-                            onClick={() => void saveAssignment(row)}
-                            disabled={busy}
-                           className="rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            OK
-                          </button>
+                         
                         </div>
                       </td>
                     </tr>
@@ -796,10 +991,10 @@ Pulisci regia
 </thead>
               <tbody>
   {doneRows.map((row) => {
-    const busy = savingKey === row.key
+    const busy = savingKey === '__bulk__' || savingKey === rowUiKey(row)
 
     return (
-      <tr key={row.key} className="border-b border-neutral-800 bg-neutral-950 text-neutral-500">
+      <tr key={rowUiKey(row)} className="border-b border-neutral-800 bg-neutral-950 text-neutral-500">
         <td className="px-4 py-3">
           <span
             className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tournamentBadge(row.tournament_id)}`}
@@ -819,7 +1014,7 @@ Pulisci regia
             type="button"
             onClick={() => {
               const ok = window.confirm('Riaprire questa partita chiusa?')
-              if (ok) void mutate(row.key, 'reopen_match')
+              if (ok) void mutate(row, 'reopen_match')
             }}
             disabled={busy}
             className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
