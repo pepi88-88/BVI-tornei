@@ -51,6 +51,7 @@ type RegiaItemState = {
   court: number | null
   sequence: number | null
   status: RegiaStatus
+  scheduledTimeManual?: string
 }
 
 type RegiaRow = {
@@ -523,16 +524,39 @@ function computeStatsForGroup(gs: GroupState, L: string) {
 
   return arr
 }
+function isGroupResolved(gs: GroupState, L: string) {
+  const rows = scheduleRowsForGroup(gs, L).filter((r) => r.setNo === 1)
+  if (!rows.length) return false
+
+  return rows.every((r) => {
+    const winner = matchWinnerFromScores(gs, L, r.matchIdx).winner
+    return !!winner
+  })
+}
 function buildGroupsRank(gs: GroupState) {
   const letters = getGroupLetters(gs)
   const byGroup: Record<string, string[]> = {}
-  const avulsa: string[] = []
+  const avulsaRows: Array<{
+    letter: string
+    pos: number
+    label: string
+    W: number
+    PF: number
+    PS: number
+    QP: number
+  }> = []
 
   for (const L of letters) {
+    if (!isGroupResolved(gs, L)) {
+      byGroup[L] = []
+      continue
+    }
+
     const stats = computeStatsForGroup(gs, L)
     byGroup[L] = stats.map((r: any) => lastSurnames(r.label))
+
     stats.forEach((r: any, idx: number) => {
-      avulsa.push(JSON.stringify({
+      avulsaRows.push({
         letter: L,
         pos: idx + 1,
         label: lastSurnames(r.label),
@@ -540,16 +564,20 @@ function buildGroupsRank(gs: GroupState) {
         PF: r.PF,
         PS: r.PS,
         QP: r.QP,
-      }))
+      })
     })
   }
 
-  const avRows = avulsa.map((s) => JSON.parse(s))
-  avRows.sort((a, b) => (a.pos - b.pos) || (b.W - a.W) || (b.QP - a.QP) || a.letter.localeCompare(b.letter))
+  avulsaRows.sort((a, b) =>
+    (a.pos - b.pos) ||
+    (b.W - a.W) ||
+    (b.QP - a.QP) ||
+    a.letter.localeCompare(b.letter)
+  )
 
   return {
     byGroup,
-    avulsa: avRows.map((r) => r.label as string),
+    avulsa: avulsaRows.map((r) => r.label),
   }
 }
 function normalizeRefText(s: string) {
@@ -573,27 +601,26 @@ function makeBracketResolver(
     if (raw === '-' || raw === '—') return '—'
     if (raw.toUpperCase() === 'BYE') return 'BYE'
 
-    let m = raw.match(/^([A-Z])(\d{1,2})$/)
-    if (m) {
-      const letter = m[1].toUpperCase()
-      const pos = Math.max(1, Number(m[2])) - 1
-      const name = byGroup[letter]?.[pos]
-      return name || raw
-    }
+  let m = raw.match(/^([A-Z])(\d{1,2})$/)
+if (m) {
+  const letter = m[1].toUpperCase()
+  const pos = Math.max(1, Number(m[2])) - 1
+  const name = byGroup[letter]?.[pos]
+  return name || ''
+}
 
-    m = raw.match(/^(\d{1,2})([A-Z])$/)
-    if (m) {
-      const letter = m[2].toUpperCase()
-      const pos = Math.max(1, Number(m[1])) - 1
-      const name = byGroup[letter]?.[pos]
-      return name || raw
-    }
+m = raw.match(/^(\d{1,2})([A-Z])$/)
+if (m) {
+  const letter = m[2].toUpperCase()
+  const pos = Math.max(1, Number(m[1])) - 1
+  const name = byGroup[letter]?.[pos]
+  return name || ''
+}
 
-    if (/^\d+$/.test(raw)) {
-      const idx = Math.max(1, Number(raw)) - 1
-      return avulsa[idx] || raw
-    }
-
+if (/^\d+$/.test(raw)) {
+  const idx = Math.max(1, Number(raw)) - 1
+  return avulsa[idx] || ''
+}
     return raw
   }
 
@@ -632,50 +659,50 @@ if (prefix === 'M') prefix = 'R'
         const left = `R${idx * 2 + 1}`
         const right = `R${idx * 2 + 2}`
         return {
-          A: winnerOfCode(left) || `Winner ${left} — ${br.title}`,
-          B: winnerOfCode(right) || `Winner ${right} — ${br.title}`,
-        }
+  A: winnerOfCode(left) || '',
+  B: winnerOfCode(right) || '',
+}
       }
 
-      if (/^Y\d+$/i.test(code)) {
-        const idx = Number(code.slice(1))
-        const z = `Z${idx}`
-        return {
-          A: winnerOfCode(z) || `Winner ${z} — ${br.title}`,
-          B: '—',
-        }
-      }
+    if (/^Y\d+$/i.test(code)) {
+  const idx = Number(code.slice(1))
+  const z = `Z${idx}`
+  return {
+    A: winnerOfCode(z) || '',
+    B: '',
+  }
+}
 
         if (/^X\d+$/i.test(code)) {
         const idx = Number(code.slice(1))
 
         if (idx === 1) {
-          return {
-            A: loserOfCode('R1') || `Loser R1 — ${br.title}`,
-            B: loserOfCode('R2') || `Loser R2 — ${br.title}`,
-          }
+         return {
+  A: loserOfCode('R1') || '',
+  B: loserOfCode('R2') || '',
+}
         }
 
-        if (idx === 2) {
-          return {
-            A: loserOfCode('R3') || `Loser R3 — ${br.title}`,
-            B: loserOfCode('R4') || `Loser R4 — ${br.title}`,
-          }
-        }
+       if (idx === 2) {
+  return {
+    A: loserOfCode('R3') || '',
+    B: loserOfCode('R4') || '',
+  }
+}
 
-        if (idx === 3) {
-          return {
-            A: winnerOfCode('X1') || `Winner X1 — ${br.title}`,
-            B: '—',
-          }
-        }
+if (idx === 3) {
+  return {
+    A: winnerOfCode('X1') || '',
+    B: '',
+  }
+}
 
-        if (idx === 4) {
-          return {
-            A: winnerOfCode('X2') || `Winner X2 — ${br.title}`,
-            B: '—',
-          }
-        }
+if (idx === 4) {
+  return {
+    A: winnerOfCode('X2') || '',
+    B: '',
+  }
+}
 
         return null
       }
@@ -683,19 +710,19 @@ if (prefix === 'M') prefix = 'R'
       if (/^Q\d+$/i.test(code)) {
         const idx = Number(code.slice(1))
 
-        if (idx === 1) {
-          return {
-            A: loserOfCode('Z1') || `Loser Z1 — ${br.title}`,
-            B: '—',
-          }
-        }
+      if (idx === 1) {
+  return {
+    A: loserOfCode('Z1') || '',
+    B: '',
+  }
+}
 
-        if (idx === 2) {
-          return {
-            A: loserOfCode('Z2') || `Loser Z2 — ${br.title}`,
-            B: '—',
-          }
-        }
+if (idx === 2) {
+  return {
+    A: loserOfCode('Z2') || '',
+    B: '',
+  }
+}
 
         return null
       }
@@ -703,56 +730,53 @@ if (prefix === 'M') prefix = 'R'
       if (/^W\d+$/i.test(code)) {
         const idx = Number(code.slice(1))
 
-        if (idx === 1) {
-          return {
-            A: winnerOfCode('Q1') || `Winner Q1 — ${br.title}`,
-            B: winnerOfCode('X3') || `Winner X3 — ${br.title}`,
-          }
-        }
+     if (idx === 1) {
+  return {
+    A: winnerOfCode('Q1') || '',
+    B: winnerOfCode('X3') || '',
+  }
+}
 
-        if (idx === 2) {
-          return {
-            A: winnerOfCode('Q2') || `Winner Q2 — ${br.title}`,
-            B: winnerOfCode('X4') || `Winner X4 — ${br.title}`,
-          }
-        }
-
+if (idx === 2) {
+  return {
+    A: winnerOfCode('Q2') || '',
+    B: winnerOfCode('X4') || '',
+  }
+}
         return null
       }
 
       if (/^CO\d+$/i.test(code)) {
         const idx = Number(code.slice(2))
 
-        if (idx === 1) {
-          return {
-            A: winnerOfCode('Y1') || `Winner Y1 — ${br.title}`,
-            B: winnerOfCode('W2') || `Winner W2 — ${br.title}`,
-          }
-        }
+      if (idx === 1) {
+  return {
+    A: winnerOfCode('Y1') || '',
+    B: winnerOfCode('W2') || '',
+  }
+}
 
-        if (idx === 2) {
-          return {
-            A: winnerOfCode('Y2') || `Winner Y2 — ${br.title}`,
-            B: winnerOfCode('W1') || `Winner W1 — ${br.title}`,
-          }
-        }
-
+if (idx === 2) {
+  return {
+    A: winnerOfCode('Y2') || '',
+    B: winnerOfCode('W1') || '',
+  }
+}
         return null
       }
-      if (code === 'F') {
-        return {
-          A: winnerOfCode('CO1') || `Winner CO1 — ${br.title}`,
-          B: winnerOfCode('CO2') || `Winner CO2 — ${br.title}`,
-        }
-      }
+     if (code === 'F') {
+  return {
+    A: winnerOfCode('CO1') || '',
+    B: winnerOfCode('CO2') || '',
+  }
+}
 
-      if (code === 'THIRD') {
-        return {
-          A: loserOfCode('CO1') || `Loser CO1 — ${br.title}`,
-          B: loserOfCode('CO2') || `Loser CO2 — ${br.title}`,
-        }
-      }
-
+if (code === 'THIRD') {
+  return {
+    A: loserOfCode('CO1') || '',
+    B: loserOfCode('CO2') || '',
+  }
+}
       return null
     }
 
@@ -842,9 +866,9 @@ function buildSERows(
       const wB = winners[prevB]
 
       labelsByCode[code] = {
-        A: wA ? labelsByCode[prevA][wA] : `Winner ${prevA} — ${bracket.title}`,
-        B: wB ? labelsByCode[prevB][wB] : `Winner ${prevB} — ${bracket.title}`,
-      }
+  A: wA ? labelsByCode[prevA][wA] : '',
+  B: wB ? labelsByCode[prevB][wB] : '',
+}
     }
 
     prevCodes = nextCodes
@@ -874,7 +898,7 @@ function buildSERows(
         phase: phaseLabelSE(round, rounds, idx, bracket.title),
         teamA: labelsByCode[code]?.A || '—',
         teamB: labelsByCode[code]?.B || '—',
-        scheduledTime: '',
+        scheduledTime: reg.scheduledTimeManual || '',
         court: reg.court ?? null,
         sequence: reg.sequence ?? null,
         status: reg.status ?? 'waiting',
@@ -889,8 +913,8 @@ function buildSERows(
       const semiB = semis[1]
       const winA = winners[semiA]
       const winB = winners[semiB]
-      const loserA = winA ? labelsByCode[semiA][winA === 'A' ? 'B' : 'A'] : `Loser ${semiA} — ${bracket.title}`
-      const loserB = winB ? labelsByCode[semiB][winB === 'A' ? 'B' : 'A'] : `Loser ${semiB} — ${bracket.title}`
+      const loserA = winA ? labelsByCode[semiA][winA === 'A' ? 'B' : 'A'] : ''
+const loserB = winB ? labelsByCode[semiB][winB === 'A' ? 'B' : 'A'] : ''
       const key = `bracket:${bracket.id}:THIRD`
       const reg = regiaItems[key] || { court: null, sequence: null, status: 'waiting' as RegiaStatus }
 
@@ -899,9 +923,9 @@ function buildSERows(
         sourceType: 'bracket',
         tournament_id: '',
         phase: `3° / 4° ${bracket.title}`,
-        teamA: loserA,
-        teamB: loserB,
-        scheduledTime: '',
+        teamA: loserA || '—',
+teamB: loserB || '—',
+        scheduledTime: reg.scheduledTimeManual || '',
         court: reg.court ?? null,
         sequence: reg.sequence ?? null,
         status: reg.status ?? 'waiting',
@@ -935,100 +959,100 @@ function buildDERows(
   case 'R4': return rLabel(3)
 
   case 'Z1':
-    return {
-      a: winnerOf('R1') || `Winner R1 — ${bracket.title}`,
-      b: winnerOf('R2') || `Winner R2 — ${bracket.title}`,
-    }
+  return {
+    a: winnerOf('R1') || '',
+    b: winnerOf('R2') || '',
+  }
 
   case 'Z2':
-    return {
-      a: winnerOf('R3') || `Winner R3 — ${bracket.title}`,
-      b: winnerOf('R4') || `Winner R4 — ${bracket.title}`,
-    }
+  return {
+    a: winnerOf('R3') || '',
+    b: winnerOf('R4') || '',
+  }
 
-  case 'Y1':
-    return {
-      a: winnerOf('Z1') || `Winner Z1 — ${bracket.title}`,
-      b: '—',
-    }
+ case 'Y1':
+  return {
+    a: winnerOf('Z1') || '',
+    b: '',
+  }
 
-  case 'Y2':
-    return {
-      a: winnerOf('Z2') || `Winner Z2 — ${bracket.title}`,
-      b: '—',
-    }
+case 'Y2':
+  return {
+    a: winnerOf('Z2') || '',
+    b: '',
+  }
 
-  case 'X1':
-    return {
-      a: loserOf('R1') || `Loser R1 — ${bracket.title}`,
-      b: loserOf('R2') || `Loser R2 — ${bracket.title}`,
-    }
+case 'X1':
+  return {
+    a: loserOf('R1') || '',
+    b: loserOf('R2') || '',
+  }
 
-  case 'X2':
-    return {
-      a: loserOf('R3') || `Loser R3 — ${bracket.title}`,
-      b: loserOf('R4') || `Loser R4 — ${bracket.title}`,
-    }
+case 'X2':
+  return {
+    a: loserOf('R3') || '',
+    b: loserOf('R4') || '',
+  }
 
-  case 'X3':
-    return {
-      a: winnerOf('X1') || `Winner X1 — ${bracket.title}`,
-      b: '—',
-    }
+case 'X3':
+  return {
+    a: winnerOf('X1') || '',
+    b: '',
+  }
 
-  case 'X4':
-    return {
-      a: winnerOf('X2') || `Winner X2 — ${bracket.title}`,
-      b: '—',
-    }
+case 'X4':
+  return {
+    a: winnerOf('X2') || '',
+    b: '',
+  }
 
-  case 'Q1':
-    return {
-      a: loserOf('Z1') || `Loser Z1 — ${bracket.title}`,
-      b: '—',
-    }
+case 'Q1':
+  return {
+    a: loserOf('Z1') || '',
+    b: '',
+  }
 
-  case 'Q2':
-    return {
-      a: loserOf('Z2') || `Loser Z2 — ${bracket.title}`,
-      b: '—',
-    }
+case 'Q2':
+  return {
+    a: loserOf('Z2') || '',
+    b: '',
+  }
 
-  case 'W1':
-    return {
-      a: winnerOf('Q1') || `Winner Q1 — ${bracket.title}`,
-      b: winnerOf('X3') || `Winner X3 — ${bracket.title}`,
-    }
+case 'W1':
+  return {
+    a: winnerOf('Q1') || '',
+    b: winnerOf('X3') || '',
+  }
 
-  case 'W2':
-    return {
-      a: winnerOf('Q2') || `Winner Q2 — ${bracket.title}`,
-      b: winnerOf('X4') || `Winner X4 — ${bracket.title}`,
-    }
+case 'W2':
+  return {
+    a: winnerOf('Q2') || '',
+    b: winnerOf('X4') || '',
+  }
 
-  case 'CO1':
-    return {
-      a: winnerOf('Y1') || `Winner Y1 — ${bracket.title}`,
-      b: winnerOf('W2') || `Winner W2 — ${bracket.title}`,
-    }
+case 'CO1':
+  return {
+    a: winnerOf('Y1') || '',
+    b: winnerOf('W2') || '',
+  }
 
-  case 'CO2':
-    return {
-      a: winnerOf('Y2') || `Winner Y2 — ${bracket.title}`,
-      b: winnerOf('W1') || `Winner W1 — ${bracket.title}`,
-    }
+case 'CO2':
+  return {
+    a: winnerOf('Y2') || '',
+    b: winnerOf('W1') || '',
+  }
 
-  case 'F':
-    return {
-      a: winnerOf('CO1') || `Winner CO1 — ${bracket.title}`,
-      b: winnerOf('CO2') || `Winner CO2 — ${bracket.title}`,
-    }
+case 'F':
+  return {
+    a: winnerOf('CO1') || '',
+    b: winnerOf('CO2') || '',
+  }
 
-  case 'THIRD':
-    return {
-      a: loserOf('CO1') || `Loser CO1 — ${bracket.title}`,
-      b: loserOf('CO2') || `Loser CO2 — ${bracket.title}`,
-    }
+case 'THIRD':
+  return {
+    a: loserOf('CO1') || '',
+    b: loserOf('CO2') || '',
+  }
 
   default:
     return { a: '—', b: '—' }
@@ -1091,9 +1115,9 @@ function buildDERows(
       sourceType: 'bracket' as const,
       tournament_id: '',
       phase: d.phase,
-      teamA: labels.a,
-      teamB: labels.b,
-      scheduledTime: '',
+     teamA: labels.a || '—',
+teamB: labels.b || '—',
+      scheduledTime: reg.scheduledTimeManual || '',
       court: reg.court ?? null,
       sequence: reg.sequence ?? null,
       status: reg.status ?? 'waiting',
@@ -1103,15 +1127,22 @@ function buildDERows(
 
 function sortRows(rows: RegiaRow[]) {
   return [...rows].sort((a, b) => {
+    // PRIORITÀ STATUS
+    const order = { live: 0, queued: 1, paused: 2, waiting: 3, done: 4 }
+    const sa = order[a.status] ?? 99
+    const sb = order[b.status] ?? 99
+    if (sa !== sb) return sa - sb
+
+    // poi campo
     const ac = a.court == null ? 999 : a.court
     const bc = b.court == null ? 999 : b.court
     if (ac !== bc) return ac - bc
 
-    const as = a.status === 'paused' ? 0 : (a.sequence == null ? 999 : a.sequence)
-    const bs = b.status === 'paused' ? 0 : (b.sequence == null ? 999 : b.sequence)
+    // poi sequenza
+    const as = a.sequence == null ? 999 : a.sequence
+    const bs = b.sequence == null ? 999 : b.sequence
     if (as !== bs) return as - bs
 
-    if (a.phase !== b.phase) return a.phase.localeCompare(b.phase)
     return a.key.localeCompare(b.key)
   })
 }
@@ -1141,10 +1172,11 @@ function applyRowsBackToStates(rows: RegiaRow[], groupState: GroupState, bracket
 
   rows.forEach((r) => {
     const payload: RegiaItemState = {
-      court: r.court ?? null,
-      sequence: r.sequence ?? null,
-      status: r.status,
-    }
+  court: r.court ?? null,
+  sequence: r.sequence ?? null,
+  status: r.status,
+  scheduledTimeManual: r.sourceType === 'bracket' ? (r.scheduledTime || '') : undefined,
+}
     if (r.sourceType === 'girone') gMap[r.key] = payload
     else bMap[r.key] = payload
   })
@@ -1198,10 +1230,10 @@ function resolvePoolLabel(
   const winnerG2 = w2 ? (w2 === 'A' ? labelBySlot(gs, L, s2[0]) : labelBySlot(gs, L, s2[1])) : ''
   const loserG2  = w2 ? (w2 === 'A' ? labelBySlot(gs, L, s2[1]) : labelBySlot(gs, L, s2[0])) : ''
 
-  if (/^Vincente G1$/i.test(raw)) return winnerG1 ? lastSurnames(winnerG1) : '—'
-  if (/^Vincente G2$/i.test(raw)) return winnerG2 ? lastSurnames(winnerG2) : '—'
-  if (/^Perdente G1$/i.test(raw)) return loserG1 ? lastSurnames(loserG1) : '—'
-  if (/^Perdente G2$/i.test(raw)) return loserG2 ? lastSurnames(loserG2) : '—'
+  if (/^Vincente G1$/i.test(raw)) return winnerG1 ? lastSurnames(winnerG1) : 'Vincente G1'
+  if (/^Vincente G2$/i.test(raw)) return winnerG2 ? lastSurnames(winnerG2) : 'Vincente G2'
+  if (/^Perdente G1$/i.test(raw)) return loserG1 ? lastSurnames(loserG1) : 'Perdente G1'
+  if (/^Perdente G2$/i.test(raw)) return loserG2 ? lastSurnames(loserG2) : 'Perdente G2'
 
   return lastSurnames(raw)
 }
@@ -1254,7 +1286,7 @@ rows.push({
       rows.push(r)
     })
   })
-  return sortRows(rows)
+  return rows
 }
 
 async function persistStates(
@@ -1297,27 +1329,58 @@ export async function GET(req: NextRequest) {
   if (!requireAdmin(req)) return new NextResponse('Unauthorized', { status: 401 })
 
   try {
-   const sp = new URL(req.url).searchParams
-const tournament_ids = sp.getAll('tournament_id').map((x) => String(x || '').trim()).filter(Boolean)
+    const sp = new URL(req.url).searchParams
+    const tournament_ids = sp.getAll('tournament_id').map((x) => String(x || '').trim()).filter(Boolean)
 
-if (!tournament_ids.length) {
-  return NextResponse.json({ error: 'Missing tournament_id' }, { status: 400 })
-}
+    if (!tournament_ids.length) {
+      return NextResponse.json({ error: 'Missing tournament_id' }, { status: 400 })
+    }
+
     const s = supabaseAdmin()
-    const allRows = []
+    const allRows: RegiaRow[] = []
 
-for (const tournament_id of tournament_ids) {
-  const { groupState, bracketState } = await loadStates(s, tournament_id)
-  const rows = buildAllRows(tournament_id, groupState, bracketState)
-  allRows.push(...rows)
-}
+    for (const tournament_id of tournament_ids) {
+      const { groupState, bracketState } = await loadStates(s, tournament_id)
+      const rows = buildAllRows(tournament_id, groupState, bracketState)
+      allRows.push(...rows)
+    }
 
-return NextResponse.json({
-  ok: true,
-  rows: allRows,
-})
+    return NextResponse.json({
+      ok: true,
+      rows: sortRows(allRows),
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Errore GET regia' }, { status: 500 })
+  }
+}
+function applyAssignmentToRow(
+  target: RegiaRow,
+  patch: {
+    court?: number | null
+    sequence?: number | null
+    scheduledTime?: string
+  }
+) {
+  if (target.status === 'live') {
+    throw new Error('Una partita LIVE non può essere spostata')
+  }
+
+  const nextCourt = patch.court == null ? null : Number(patch.court)
+  const nextSequence = patch.sequence == null ? null : Number(patch.sequence)
+  const nextScheduledTime = String(patch.scheduledTime || '').trim()
+
+  target.scheduledTime = nextScheduledTime
+
+  if (nextCourt == null) {
+    target.court = null
+    target.sequence = null
+    target.status = 'waiting'
+  } else {
+    target.court = nextCourt
+    target.sequence = nextSequence
+    if (target.status === 'waiting' || target.status === 'paused') {
+      target.status = 'queued'
+    }
   }
 }
 
@@ -1325,11 +1388,12 @@ export async function PUT(req: NextRequest) {
   if (!requireAdmin(req)) return new NextResponse('Unauthorized', { status: 401 })
 
   try {
-   const body = (await req.json().catch(() => null)) as
+  const body = (await req.json().catch(() => null)) as
   | {
       tournament_id?: string
       action?:
         | 'save_assignment'
+        | 'save_assignment_batch'
         | 'set_live'
         | 'stop_live'
         | 'close_match'
@@ -1338,9 +1402,15 @@ export async function PUT(req: NextRequest) {
       key?: string
       court?: number | null
       sequence?: number | null
+      scheduledTime?: string
+      changes?: Array<{
+        key: string
+        court?: number | null
+        sequence?: number | null
+        scheduledTime?: string
+      }>
     }
   | null
-
    const tournament_id = String(body?.tournament_id || '').trim()
 const action = body?.action
 const key = String(body?.key || '').trim()
@@ -1349,7 +1419,11 @@ if (!tournament_id || !action) {
   return NextResponse.json({ error: 'Missing params' }, { status: 400 })
 }
 
-if (action !== 'reset_tournament_regia' && !key) {
+if (
+  action !== 'reset_tournament_regia' &&
+  action !== 'save_assignment_batch' &&
+  !key
+) {
   return NextResponse.json({ error: 'Missing key' }, { status: 400 })
 }
 
@@ -1358,53 +1432,71 @@ const { groupState, bracketState, gData, bData } = await loadStates(s, tournamen
 const rows = buildAllRows(tournament_id, groupState, bracketState)
 
 const target =
-  action === 'reset_tournament_regia'
+  action === 'reset_tournament_regia' || action === 'save_assignment_batch'
     ? null
     : readRegiaState(rows, key)
 
-if (action !== 'reset_tournament_regia' && !target) {
+if (
+  action !== 'reset_tournament_regia' &&
+  action !== 'save_assignment_batch' &&
+  !target
+) {
   return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
 }
 
- if (action === 'save_assignment') {
+if (action === 'save_assignment') {
   if (!target) {
     return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
   }
 
-  if (target.status === 'live') {
-    return NextResponse.json({ error: 'Una partita LIVE non può essere spostata' }, { status: 400 })
+  try {
+    applyAssignmentToRow(target, {
+      court: body?.court,
+      sequence: body?.sequence,
+      scheduledTime: body?.scheduledTime,
+    })
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Errore assegnazione' }, { status: 400 })
+  }
+}
+    if (action === 'save_assignment_batch') {
+  const changes = Array.isArray(body?.changes) ? body!.changes : []
+
+  if (!changes.length) {
+    return NextResponse.json({ error: 'Nessuna modifica da salvare' }, { status: 400 })
   }
 
-  const nextCourt = body?.court == null ? null : Number(body.court)
-  const nextSequence = body?.sequence == null ? null : Number(body.sequence)
+  const seen = new Set<string>()
 
-  if (nextCourt == null) {
-    target.court = null
-    target.sequence = null
-    target.status = 'waiting'
-  } else {
-    target.court = nextCourt
-    target.sequence = nextSequence || 1
-    if (target.status === 'waiting' || target.status === 'paused') target.status = 'queued'
+  for (const change of changes) {
+    const changeKey = String(change?.key || '').trim()
+    if (!changeKey) {
+      return NextResponse.json({ error: 'Una modifica non ha key valida' }, { status: 400 })
+    }
+    if (seen.has(changeKey)) continue
+    seen.add(changeKey)
 
-    const sameCourt = rows
-      .filter((r) => r.key !== target.key && r.court === nextCourt && (r.status === 'queued' || r.status === 'live'))
-      .sort((a, b) => {
-        if (a.status === 'live' && b.status !== 'live') return -1
-        if (b.status === 'live' && a.status !== 'live') return 1
-        return (a.sequence ?? 999) - (b.sequence ?? 999)
+    const row = readRegiaState(rows, changeKey)
+    if (!row) {
+      return NextResponse.json({ error: `Partita non trovata: ${changeKey}` }, { status: 404 })
+    }
+
+    try {
+      applyAssignmentToRow(row, {
+        court: change?.court,
+        sequence: change?.sequence,
+        scheduledTime: change?.scheduledTime,
       })
-
-    const liveExists = sameCourt.some((r) => r.status === 'live')
-    if (liveExists && target.sequence === 1) {
-      return NextResponse.json({ error: 'Non puoi inserire una partita prima della LIVE del campo' }, { status: 400 })
+    } catch (err: any) {
+      return NextResponse.json(
+        { error: `${changeKey}: ${err?.message || 'Errore assegnazione'}` },
+        { status: 400 }
+      )
     }
   }
-
-  const affectedCourts = Array.from(new Set(rows.map((r) => r.court).filter((x): x is number => x != null)))
-  affectedCourts.forEach((court) => resequenceCourt(rows, court))
 }
 
+ 
 if (action === 'set_live') {
   if (!target) {
     return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
@@ -1444,11 +1536,8 @@ if (action === 'stop_live') {
     return NextResponse.json({ error: 'La partita non è LIVE' }, { status: 400 })
   }
 
-  const court = target.court
   target.status = 'paused'
   target.sequence = 0
-
-  if (court != null) resequenceCourt(rows, court)
 }
 
 if (action === 'close_match') {
@@ -1456,9 +1545,7 @@ if (action === 'close_match') {
     return NextResponse.json({ error: 'Partita non trovata' }, { status: 404 })
   }
 
-  const court = target.court
   target.status = 'done'
-  if (court != null) resequenceCourt(rows, court)
 }
 
 if (action === 'reopen_match') {
@@ -1472,30 +1559,7 @@ if (action === 'reopen_match') {
 
   target.status = target.court != null ? 'queued' : 'waiting'
 
-  if (target.court != null) {
-    const sameCourt = rows
-      .filter(
-        (r) =>
-          r.key !== target.key &&
-          r.court === target.court &&
-          (r.status === 'queued' || r.status === 'live')
-      )
-      .sort((a, b) => {
-        if (a.status === 'live' && b.status !== 'live') return -1
-        if (b.status === 'live' && a.status !== 'live') return 1
-        return (a.sequence ?? 999) - (b.sequence ?? 999)
-      })
-
-    const liveExists = sameCourt.some((r) => r.status === 'live')
-
-    if (liveExists) {
-      target.sequence = (sameCourt[sameCourt.length - 1]?.sequence ?? 1) + 1
-    } else {
-      target.sequence = target.sequence ?? 1
-    }
-
-    resequenceCourt(rows, target.court)
-  } else {
+  if (target.court == null) {
     target.sequence = null
   }
 }
