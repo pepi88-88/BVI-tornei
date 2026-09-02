@@ -241,7 +241,7 @@ function ItaRRTable({
       </div>
       <div className="p-3 space-y-2">
         {matches.map(([a,b], idx) => (
-          <div key={idx} className="grid items-center"
+          <div key={`match-${a}-${b}-${idx}`} className="grid items-center"
                style={{ gridTemplateColumns: '96px minmax(0,1fr) 44px 16px 44px minmax(0,1fr)', columnGap: '.35rem' }}>
             <input type="time" className="input h-8 pl-1 pr-0 text-sm text-white w-[78px]"
                    value={times[idx] ?? ''} onChange={e => setTime(idx, e.target.value)}/>
@@ -327,12 +327,14 @@ const [scores, setScores] = useState<ItaScore[]>(() => {
 
 // se cambiano i dati server, riallinea
 useEffect(() => {
-  if (serverScores && Array.isArray(serverScores)) {
+  if (
+    serverScores &&
+    Array.isArray(serverScores) &&
+    JSON.stringify(serverScores) !== JSON.stringify(scores)
+  ) {
     setScores(serverScores)
   }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [serverScores])
-
 
   // allinea lunghezza punteggi al numero di partite
   useEffect(() => {
@@ -347,13 +349,27 @@ useEffect(() => {
   }, [pairs.length])
 
   // persistenza: preferisci server (callback), fallback LS
+const [readyScores, setReadyScores] = useState(false)
+
 useEffect(() => {
+  if (serverScores && Array.isArray(serverScores)) {
+    setScores(serverScores)
+  }
+  setReadyScores(true)
+}, [serverScores, bracket.id])
+
+
+useEffect(() => {
+  if (!readyScores) return
+
   if (onServerScoresChange) {
     onServerScoresChange(scores)
   } else {
-    try { localStorage.setItem(keyScores, JSON.stringify(scores)) } catch {}
+    try {
+      localStorage.setItem(keyScores, JSON.stringify(scores))
+    } catch {}
   }
-}, [scores, keyScores, onServerScoresChange])
+}, [scores, readyScores])
 
   /** classifica automatica */
   const standings = useMemo(() => {
@@ -422,7 +438,7 @@ useEffect(() => {
               const s = scores[i] || {}
               return (
                 <div
-                  key={`m-${i}`}
+                  key={`match-${a1}-${b1}-${i}`}
                   className="grid items-center gap-2"
                   style={{
                     gridTemplateColumns: 'minmax(0,1fr) 52px 16px 52px minmax(0,1fr)',
