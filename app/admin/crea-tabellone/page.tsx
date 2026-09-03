@@ -852,7 +852,7 @@ patchActive({
   pre: newType === 'PSE' ? buildPreLayout(nn) : [],
   slots: clearedSlot 
 })
-
+}
 
 //quimarco
 
