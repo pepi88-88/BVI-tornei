@@ -54,11 +54,12 @@ type Bracket = {
   id: string
   title: string
   color: string
-  type: 'SE' | 'DE' | 'ITA'
+  type: 'SE' | 'DE' | 'PSE' | 'ITA'
   nTeams: number
   source: 'gironi' | 'avulsa' | 'eliminati' | 'gironi+eliminati'| 'avulsa+eliminati'
   fromTableId?: string
-  r1: { A: string; B: string }[]   // usato da SE e anche da DE (R1..R4)
+   r1: { A: string; B: string }[]   // usato da SE e anche da DE (R1..R4)
+  pre?: { A: string; B: string }[] // usato da PSE (fase preliminare)
   slots: string[]                   // usato da ITA
 }
 const keyLS = (tour: string, tappa: string) => `brackets:${tour}:${tappa}`
@@ -77,8 +78,9 @@ function normalizeBracket(b: any): Bracket {
     type: (b?.type as Bracket['type']) || 'SE',
     nTeams,
     source: (b?.source as Bracket['source']) || 'gironi',
-    fromTableId: b?.fromTableId || undefined,
+       fromTableId: b?.fromTableId || undefined,
     r1,
+    pre: Array.isArray(b?.pre) ? b.pre : [],
     slots,
   }
 }
