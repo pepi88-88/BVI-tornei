@@ -304,7 +304,9 @@ function buildPreLayout(nTeams:number){
 }
 function buildPSELayout(title:string,nTeams:number){
 
-  const se = buildSELayout(title,nTeams)
+  const offset = CARD_W + 120
+
+  const se = buildSELayout(title,nTeams,offset,0)
 
   const size = nextPow2(nTeams)
   const preMatches = size / 2
@@ -325,6 +327,7 @@ function buildPSELayout(title:string,nTeams:number){
   return {
     ...se,
     type:'PSE',
+    width: se.width + offset,
     pre: buildPreLayout(nTeams),
     preNodes
   }
@@ -841,7 +844,12 @@ function migrateParentsByTitle(brs: Bracket[]): Bracket[] {
   const needR1 = nextPow2(nn) / 2
   const clearedR1   = Array.from({ length: needR1 }, () => ({ A: '-', B: '-' }))
   const clearedSlot = Array.from({ length: nextPow2(nn) }, () => '')
-  patchActive({ type: newType, r1: clearedR1, slots: clearedSlot })
+  patchApatchActive({ 
+  type: newType, 
+  r1: clearedR1, 
+  pre: newType === 'PSE' ? buildPreLayout(nn) : [],
+  slots: clearedSlot 
+})ctive({ type: newType, r1: clearedR1, slots: clearedSlot })
 }
 
 
@@ -1108,6 +1116,10 @@ case 'avulsa+eliminati':  return [...avulsaOps, ...elimOps]
       for (const r of b.r1 ?? []) { add(r?.A); add(r?.B) }
       for (const c of b.slots ?? []) add(c)
     }
+     for (const p of b.pre ?? []) { 
+  add(p?.A); 
+  add(p?.B) 
+}
     return s
   }, [brackets])
   const isTakenElsewhere = (code:string, ctx: {pair?:number; side?:0|1; itaIndex?:number} = {}) => {
@@ -1312,9 +1324,10 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   onChange={(e)=>handleTypeChange(e.target.value as Bracket['type'])}
   disabled={locked}
 >
-  <option value="SE">Singola eliminazione</option>
-  <option value="ITA">Girone all’italiana</option>
-  <option value="DE">Doppia eliminazione (manuale)</option>
+ <option value="SE">Singola eliminazione</option>
+<option value="PSE">Pre + Singola eliminazione</option>
+<option value="ITA">Girone all’italiana</option>
+<option value="DE">Doppia eliminazione (manuale)</option>
 </select>
 
           </div>
@@ -1381,12 +1394,36 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
       </div>
 
       {/* === SE === */}
-      {active.type === 'SE' && (
+      {(active.type === 'SE' || active.type === 'PSE') && (
         <div className="relative card overflow-x-auto overflow-y-hidden" style={{ height: seLayout.height + 120 }}>
-          <div className="relative" style={{ width: seLayout.width + HSCROLL_PAD, height: seLayout.height + 100 }}>
+         <div 
+  className="relative" 
+  style={{ 
+    width: seLayout.width + HSCROLL_PAD + (active.type === 'PSE' ? CARD_W + 120 : 0), 
+    height: seLayout.height + 100 
+  }}
+>
             {/* SVG connettori */}
             <svg ref={svgRef} width={seLayout.width} height={seLayout.height} className="absolute top-4 left-4" style={{ overflow: 'visible' }}>
-              {seLayout.nodes.map((n, idx) => {
+              {active.type === 'PSE' && active.preNodes?.map((p, i) => {
+  const target = seLayout.byRound[0]?.[i]
+  if (!target) return null
+
+  const startX = p.left + CARD_W
+  const startY = p.top + CARD_H / 2
+
+  const endX = target.left
+  const endY = target.top + CARD_H / 2
+
+  const midX = (startX + endX) / 2
+
+  return (
+    <g key={`pre-line-${i}`} stroke={active.color} strokeWidth={3} fill="none">
+      <path d={`M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`} />
+    </g>
+  )
+})}
+               {seLayout.nodes.map((n, idx) => {
                 if (n.round === 1) return null
                 const A = seLayout.nodes[n.fromA!], B = seLayout.nodes[n.fromB!]
                 const ca = centerOf(A), cb = centerOf(B), c = centerOf(n)
@@ -1404,13 +1441,94 @@ const ENTER = Math.round(50 * (CARD_W / 224))
                 )
               })}
             </svg>
+{active.type === 'PSE' && active.preNodes && (
+  <div className="absolute top-4 left-4">
+    {active.preNodes.map((n)=>(
+      <div
+        key={n.id}
+        className="absolute card p-3 shadow-lg"
+        style={{
+          width:CARD_W,
+          height:CARD_H,
+          left:n.left,
+          top:n.top
+        }}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[11px] uppercase opacity-70">
+            {n.code} — {active.title}
+          </div>
+        </div>
 
+        <select
+          className="input w-full h-10 mb-2"
+          value={active.pre?.[n.mIndex]?.A || '-'}
+          onChange={(e)=>{
+            const pre = [...(active.pre || [])]
+            pre[n.mIndex] = {
+              ...(pre[n.mIndex] || {A:'-',B:'-'}),
+              A:e.target.value
+            }
+            patchActive({pre})
+          }}
+          disabled={locked}
+        >
+          <option value="-">—</option>
+          <option value="BYE">BYE</option>
+          {slotOptions.map(op=>(
+            <option key={`p-a-${n.mIndex}-${op}`} value={op}>
+              {op}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="input w-full h-10"
+          value={active.pre?.[n.mIndex]?.B || '-'}
+          onChange={(e)=>{
+            const pre = [...(active.pre || [])]
+            pre[n.mIndex] = {
+              ...(pre[n.mIndex] || {A:'-',B:'-'}),
+              B:e.target.value
+            }
+            patchActive({pre})
+          }}
+          disabled={locked}
+        >
+          <option value="-">—</option>
+          <option value="BYE">BYE</option>
+          {slotOptions.map(op=>(
+            <option key={`p-b-${n.mIndex}-${op}`} value={op}>
+              {op}
+            </option>
+          ))}
+        </select>
+
+      </div>
+    ))}
+  </div>
+)}
             {/* Cards */}
-<div className="absolute top-4 left-4" style={{ width: seLayout.width, height: seLayout.height }}>
+<div 
+  className="absolute top-4" 
+  style={{ 
+    left: active.type === 'PSE' ? CARD_W + 120 : 0,
+    width: seLayout.width, 
+    height: seLayout.height 
+  }}
+>
   {seLayout.nodes.map((n) => {
     if (n.round === 1) {
       const pair = n.mIndex
       const m = active.r1?.[pair] || { A: '-', B: '-' }
+
+const pseWinnerA = active.type === 'PSE'
+  ? `Vincente P${pair*2+1}`
+  : m.A
+
+const pseWinnerB = active.type === 'PSE'
+  ? `Vincente P${pair*2+2}`
+  : m.B
       return (
         <div key={n.id} className="absolute card p-3 shadow-lg" style={{ width: CARD_W, height: CARD_H, left: n.left, top: n.top }}>
           <div className="flex items-center justify-between mb-2">
@@ -1420,49 +1538,59 @@ const ENTER = Math.round(50 * (CARD_W / 224))
 
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 text-xs opacity-70 hide-letter" aria-hidden>A</div>
-            <select
-              className="input flex-1 h-10"
-              value={m.A}
-              onChange={(e)=>setSlot(pair, 0, e.target.value)}
-              disabled={locked}
-            >
-              <option value="-">—</option>
-              <option value="BYE">BYE</option>
-             {slotOptions.map(op => {
-  const dis = isTakenElsewhere(op, {pair, side:0})
-  return (
-    <option key={`a-${pair}-${op}`} value={op} disabled={dis}>
-     {op}{dis ? ' — X' : ''}
-    </option>
-  )
-})}
+            {active.type === 'PSE' ? (
+  <div className="input flex-1 h-10 flex items-center px-3 text-sm">
+    {pseWinnerA}
+  </div>
+) : (
+  <select
+    className="input flex-1 h-10"
+    value={m.A}
+    onChange={(e)=>setSlot(pair, 0, e.target.value)}
+    disabled={locked}
+  >
+    <option value="-">—</option>
+    <option value="BYE">BYE</option>
 
-
-            </select>
+    {slotOptions.map(op => {
+      const dis = isTakenElsewhere(op, {pair, side:0})
+      return (
+        <option key={`a-${pair}-${op}`} value={op} disabled={dis}>
+          {op}{dis ? ' — X' : ''}
+        </option>
+      )
+    })}
+  </select>
+)}
           </div>
 
           <div className="flex items-center gap-2">
             <div className="w-8 text-xs opacity-70 hide-letter" aria-hidden>B</div>
 
-            <select
-              className="input flex-1 h-10"
-              value={m.B}
-              onChange={(e)=>setSlot(pair, 1, e.target.value)}
-              disabled={locked}
-            >
-              <option value="-">—</option>
-              <option value="BYE">BYE</option>
-             {slotOptions.map(op => {
-  const dis = isTakenElsewhere(op, {pair, side:1})
-  return (
-    <option key={`b-${pair}-${op}`} value={op} disabled={dis}>
-     {op}{dis ? ' — X' : ''}
-    </option>
-  )
-})}
+           {active.type === 'PSE' ? (
+  <div className="input flex-1 h-10 flex items-center px-3 text-sm">
+    {pseWinnerB}
+  </div>
+) : (
+  <select
+    className="input flex-1 h-10"
+    value={m.B}
+    onChange={(e)=>setSlot(pair, 1, e.target.value)}
+    disabled={locked}
+  >
+    <option value="-">—</option>
+    <option value="BYE">BYE</option>
 
-
-            </select>
+    {slotOptions.map(op => {
+      const dis = isTakenElsewhere(op, {pair, side:1})
+      return (
+        <option key={`b-${pair}-${op}`} value={op} disabled={dis}>
+          {op}{dis ? ' — X' : ''}
+        </option>
+      )
+    })}
+  </select>
+)}
           </div>
         </div>
       )
@@ -1523,7 +1651,53 @@ const ENTER = Math.round(50 * (CARD_W / 224))
           </div>
         </div>
       )}
+      {/* === PSE === */}
+      {active.type === 'PSE' && (
+        <div className="relative card overflow-x-auto overflow-y-hidden" style={{ height: seLayout.height + 120 }}>
+          <div 
+            className="relative" 
+            style={{ width: seLayout.width + HSCROLL_PAD + 200, height: seLayout.height + 100 }}
+          >
 
+            {/* P - fase preliminare */}
+            <div className="absolute top-4 left-4">
+              {active.pre?.map((m, i) => (
+                <div
+                  key={`pre-${i}`}
+                  className="absolute card p-3 shadow-lg"
+                  style={{
+                    width: CARD_W,
+                    height: CARD_H,
+                    left: 0,
+                    top: i * (CARD_H + ROW_GAP)
+                  }}
+                >
+                  <div className="text-[11px] uppercase opacity-70 mb-2">
+                    P{i+1} — {active.title}
+                  </div>
+
+                  <div className="text-sm">
+                    Squadra A
+                  </div>
+
+                  <div className="text-sm">
+                    Squadra B
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* SE principale */}
+            <div 
+              className="absolute top-4"
+              style={{ left: CARD_W + 80 }}
+            >
+              {/* qui riutilizziamo il SE */}
+            </div>
+
+          </div>
+        </div>
+      )}
       {/* === ITA === */}
       {active.type === 'ITA' && (
         <div className="card p-3 space-y-4">
