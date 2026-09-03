@@ -60,6 +60,7 @@ type Bracket = {
   fromTableId?: string
    r1: { A: string; B: string }[]   // usato da SE e anche da DE (R1..R4)
   pre?: { A: string; B: string }[] // usato da PSE (fase preliminare)
+    preNodes?: Node[]
   slots: string[]                   // usato da ITA
 }
 const keyLS = (tour: string, tappa: string) => `brackets:${tour}:${tappa}`
@@ -288,6 +289,45 @@ function buildSELayout(title: string, nTeams: number, leftOffset = 0, topOffset 
   const width = rounds*(CARD_W+COL_GAP)-COL_GAP+20
   const height = Math.max(...nodes.map(n=>n.top), 0) + CARD_H - topOffset
   return { nodes, rounds, width, height, byRound, topOffset, roundsCount: rounds }
+}
+function buildPreLayout(nTeams:number){
+
+  const size = nextPow2(nTeams)
+
+  return Array.from(
+    {length:size/2},
+    () => ({
+      A:'',
+      B:''
+    })
+  )
+}
+function buildPSELayout(title:string,nTeams:number){
+
+  const se = buildSELayout(title,nTeams)
+
+  const size = nextPow2(nTeams)
+  const preMatches = size / 2
+
+  const preNodes: Node[] = []
+
+  for (let i = 0; i < preMatches; i++) {
+    preNodes.push({
+      id:`${title.toUpperCase()}-P${i+1}`,
+      round:0,
+      mIndex:i,
+      left:0,
+      top:i*(CARD_H+ROW_GAP),
+      code:`P${i+1}`
+    })
+  }
+
+  return {
+    ...se,
+    type:'PSE',
+    pre: buildPreLayout(nTeams),
+    preNodes
+  }
 }
 // ======= FUNZIONI/TYPE prese da “Sorgenti” (ridotte al necessario) =======
 type GmStore = {
@@ -1105,13 +1145,19 @@ const bracketLevels = useMemo(() => {
     { name:'Galattico',hex:'#6D28D9' },
   ]
 
-  /* 7) Layout SE */
-  const svgRef = useRef<SVGSVGElement>(null)
-  const seLayout = useMemo(() => {
-    if (!active) return { nodes: [], rounds: 1, width: 0, height: 0, byRound: [] as Node[][], topOffset: 0, roundsCount: 1 }
-    return buildSELayout(`${active.title}`, active.nTeams, 0, 0)
-  }, [active?.title, active?.nTeams])
+ /* 7) Layout SE */
+const svgRef = useRef<SVGSVGElement>(null)
 
+const seLayout = useMemo(() => {
+  if (!active) return { nodes: [], rounds: 1, width: 0, height: 0, byRound: [] as Node[][], topOffset: 0, roundsCount: 1 }
+
+  if (active.type === 'PSE') {
+    return buildPSELayout(`${active.title}`, active.nTeams)
+  }
+
+  return buildSELayout(`${active.title}`, active.nTeams, 0, 0)
+
+}, [active?.title, active?.nTeams, active?.type])
   /* Drawer “Vedi gironi” */
   const [showDrawer, setShowDrawer] = useState(false)
 /* ============== RENDER ============== */
