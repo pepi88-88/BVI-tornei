@@ -840,17 +840,17 @@ function migrateParentsByTitle(brs: Bracket[]): Bracket[] {
     patchActive({ type: newType })
     return
   }
-  const nn    = clamp(active.nTeams, 2, 16)
-  const needR1 = nextPow2(nn) / 2
-  const clearedR1   = Array.from({ length: needR1 }, () => ({ A: '-', B: '-' }))
-  const clearedSlot = Array.from({ length: nextPow2(nn) }, () => '')
-  patchApatchActive({ 
+ const nn = clamp(active.nTeams, 2, 16)
+const needR1 = nextPow2(nn) / 2
+const clearedR1 = Array.from({ length: needR1 }, () => ({ A: '-', B: '-' }))
+const clearedSlot = Array.from({ length: nextPow2(nn) }, () => '')
+
+patchActive({ 
   type: newType, 
   r1: clearedR1, 
   pre: newType === 'PSE' ? buildPreLayout(nn) : [],
   slots: clearedSlot 
-})ctive({ type: newType, r1: clearedR1, slots: clearedSlot })
-}
+})
 
 
 //quimarco
