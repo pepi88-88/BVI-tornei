@@ -72,18 +72,19 @@ function normalizeBracket(b: any): Bracket {
     B: b?.r1?.[i]?.B ?? '-',
   }))
   const slots = Array.from({ length: nextPow2(nTeams) }, (_, i) => b?.slots?.[i] ?? '')
-  return {
+ return {
     id: String(b?.id || uid()),
     title: String(b?.title || 'TABELLONE 1'),
     color: String(b?.color || '#22c55e'),
     type: (b?.type as Bracket['type']) || 'SE',
     nTeams,
     source: (b?.source as Bracket['source']) || 'gironi',
-       fromTableId: b?.fromTableId || undefined,
+    fromTableId: b?.fromTableId || undefined,
     r1,
     pre: Array.isArray(b?.pre) ? b.pre : [],
+    preNodes: Array.isArray(b?.preNodes) ? b.preNodes : undefined,
     slots,
-  }
+}
 }
 
 
@@ -1405,8 +1406,8 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 >
             {/* SVG connettori */}
             <svg ref={svgRef} width={seLayout.width} height={seLayout.height} className="absolute top-4 left-4" style={{ overflow: 'visible' }}>
-              {active.type === 'PSE' && active.preNodes?.map((p, i) => {
-  const target = seLayout.byRound[0]?.[i]
+             {active.type === 'PSE' && active.preNodes?.map((p, i) => {
+  const target = seLayout.byRound[0]?.[Math.floor(i / 2)]
   if (!target) return null
 
   const startX = p.left + CARD_W
@@ -1475,11 +1476,18 @@ const ENTER = Math.round(50 * (CARD_W / 224))
         >
           <option value="-">—</option>
           <option value="BYE">BYE</option>
-          {slotOptions.map(op=>(
-            <option key={`p-a-${n.mIndex}-${op}`} value={op}>
-              {op}
-            </option>
-          ))}
+        {slotOptions.map(op=>{
+  const dis = isTakenElsewhere(op, { pair:n.mIndex, side:0 })
+  return (
+    <option 
+      key={`p-a-${n.mIndex}-${op}`} 
+      value={op}
+      disabled={dis}
+    >
+      {op}{dis ? ' — X' : ''}
+    </option>
+  )
+})}
         </select>
 
         <select
@@ -1497,11 +1505,18 @@ const ENTER = Math.round(50 * (CARD_W / 224))
         >
           <option value="-">—</option>
           <option value="BYE">BYE</option>
-          {slotOptions.map(op=>(
-            <option key={`p-b-${n.mIndex}-${op}`} value={op}>
-              {op}
-            </option>
-          ))}
+         {slotOptions.map(op=>{
+  const dis = isTakenElsewhere(op, { pair:n.mIndex, side:1 })
+  return (
+    <option 
+      key={`p-b-${n.mIndex}-${op}`} 
+      value={op}
+      disabled={dis}
+    >
+      {op}{dis ? ' — X' : ''}
+    </option>
+  )
+})}
         </select>
 
       </div>
@@ -1651,53 +1666,7 @@ const pseWinnerB = active.type === 'PSE'
           </div>
         </div>
       )}
-      {/* === PSE === */}
-      {active.type === 'PSE' && (
-        <div className="relative card overflow-x-auto overflow-y-hidden" style={{ height: seLayout.height + 120 }}>
-          <div 
-            className="relative" 
-            style={{ width: seLayout.width + HSCROLL_PAD + 200, height: seLayout.height + 100 }}
-          >
-
-            {/* P - fase preliminare */}
-            <div className="absolute top-4 left-4">
-              {active.pre?.map((m, i) => (
-                <div
-                  key={`pre-${i}`}
-                  className="absolute card p-3 shadow-lg"
-                  style={{
-                    width: CARD_W,
-                    height: CARD_H,
-                    left: 0,
-                    top: i * (CARD_H + ROW_GAP)
-                  }}
-                >
-                  <div className="text-[11px] uppercase opacity-70 mb-2">
-                    P{i+1} — {active.title}
-                  </div>
-
-                  <div className="text-sm">
-                    Squadra A
-                  </div>
-
-                  <div className="text-sm">
-                    Squadra B
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* SE principale */}
-            <div 
-              className="absolute top-4"
-              style={{ left: CARD_W + 80 }}
-            >
-              {/* qui riutilizziamo il SE */}
-            </div>
-
-          </div>
-        </div>
-      )}
+    
       {/* === ITA === */}
       {active.type === 'ITA' && (
         <div className="card p-3 space-y-4">
