@@ -1110,19 +1110,34 @@ case 'avulsa+eliminati':  return [...avulsaOps, ...elimOps]
 
 
 
-  const usedCodesGlobal = useMemo(()=>{
-    const s = new Set<string>()
-    const add = (code?:string) => { if (!code) return; if (code==='-'||code==='BYE') return; s.add(code) }
-    for (const b of brackets) {
-      for (const r of b.r1 ?? []) { add(r?.A); add(r?.B) }
-      for (const c of b.slots ?? []) add(c)
+const usedCodesGlobal = useMemo(()=>{
+  const s = new Set<string>()
+
+  const add = (code?:string) => { 
+    if (!code) return
+    if (code==='-' || code==='BYE') return
+    s.add(code)
+  }
+
+  for (const b of brackets) {
+
+    for (const r of b.r1 ?? []) { 
+      add(r?.A)
+      add(r?.B)
     }
-     for (const p of b.pre ?? []) { 
-  add(p?.A); 
-  add(p?.B) 
-}
-    return s
-  }, [brackets])
+
+    for (const c of b.slots ?? []) {
+      add(c)
+    }
+
+    for (const p of b.pre ?? []) { 
+      add(p?.A)
+      add(p?.B)
+    }
+  }
+
+  return s
+}, [brackets])
   const isTakenElsewhere = (code:string, ctx: {pair?:number; side?:0|1; itaIndex?:number} = {}) => {
     if (!code || code==='-' || code==='BYE') return false
     if (ctx.pair!=null && ctx.side!=null) {
