@@ -308,7 +308,7 @@ function buildPSELayout(title:string,nTeams:number){
   const offset = CARD_W + 120
 
   const se = buildSELayout(title,nTeams,offset,0)
-
+const preOffset = CARD_W + 80
   const size = nextPow2(nTeams)
   const preMatches = size / 2
 
@@ -319,7 +319,7 @@ function buildPSELayout(title:string,nTeams:number){
  id:`${title.toUpperCase()}-P${i+1}`,
  round:0,
  mIndex:i,
- left:0,
+ left:-preOffset,
  top:i*(CARD_H+ROW_GAP),
  code:`P${i+1}`
 })
@@ -1544,6 +1544,34 @@ top:i*(CARD_H+ROW_GAP)
     ))}
   </div>
 )}
+          {/* Collegamenti P → R */}
+<svg
+ width={seLayout.width}
+ height={seLayout.height}
+ className="absolute top-4 left-4"
+ style={{overflow:'visible'}}
+>
+{active.pre?.map((_,i)=>{
+
+  const target = seLayout.nodes[i]
+
+  if(!target) return null
+
+  const y1 = i*(CARD_H+ROW_GAP)+CARD_H/2
+  const y2 = target.top+CARD_H/2
+
+  return (
+    <path
+      key={`p-line-${i}`}
+      d={`M ${CARD_W} ${y1} H ${target.left-40} V ${y2}`}
+      stroke={active.color}
+      strokeWidth={3}
+      fill="none"
+    />
+  )
+
+})}
+</svg>  
             {/* Cards */}
 <div 
   className="absolute top-4" 
@@ -1577,6 +1605,12 @@ top:i*(CARD_H+ROW_GAP)
   >
     <option value="-">—</option>
     <option value="BYE">BYE</option>
+     {active.type === 'PSE' && active.pre?.map((_,i)=>(
+  <option key={`wp-a-${i}`} value={`Vincente P${i+1}`}>
+    Vincente P{i+1}
+  </option>
+))}
+
 
     {slotOptions.map(op => {
       const dis = isTakenElsewhere(op, {pair, side:0})
@@ -1600,7 +1634,12 @@ top:i*(CARD_H+ROW_GAP)
   >
     <option value="-">—</option>
     <option value="BYE">BYE</option>
-
+     
+{active.type === 'PSE' && active.pre?.map((_,i)=>(
+  <option key={`wp-b-${i}`} value={`Vincente P${i+1}`}>
+    Vincente P{i+1}
+  </option>
+))}
     {slotOptions.map(op => {
       const dis = isTakenElsewhere(op, {pair, side:1})
       return (
