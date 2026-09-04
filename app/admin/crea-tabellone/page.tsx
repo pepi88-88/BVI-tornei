@@ -305,10 +305,10 @@ function buildPreLayout(nTeams:number){
 }
 function buildPSELayout(title:string,nTeams:number){
 
-  const offset = CARD_W + 120
+  const offset = 80
 
   const se = buildSELayout(title,nTeams,offset,0)
-const preOffset = CARD_W + 80
+const preOffset = 40
   const size = nextPow2(nTeams)
   const preMatches = size / 2
 
@@ -1138,18 +1138,36 @@ const usedCodesGlobal = useMemo(()=>{
 
   return s
 }, [brackets])
-  const isTakenElsewhere = (code:string, ctx: {pair?:number; side?:0|1; itaIndex?:number} = {}) => {
-    if (!code || code==='-' || code==='BYE') return false
-    if (ctx.pair!=null && ctx.side!=null) {
-      const cur = (active?.r1?.[ctx.pair] ?? {A:'',B:''})[ctx.side===0?'A':'B']
-      if (cur === code) return false
-    }
-    if (ctx.itaIndex!=null) {
-      const cur = active?.slots?.[ctx.itaIndex]
-      if (cur === code) return false
-    }
-    return usedCodesGlobal.has(code)
+const isTakenElsewhere = (
+  code:string,
+  ctx: {pair?:number; side?:0|1; itaIndex?:number; preIndex?:number} = {}
+) => {
+  if (!code || code==='-' || code==='BYE') return false
+
+  // controllo per i match preliminari P
+  if (ctx.preIndex != null) {
+    const cur = active?.pre?.[ctx.preIndex]
+    const current = ctx.side === 0 ? cur?.A : cur?.B
+
+    if (current === code) return false
   }
+
+  // controllo per R1 del SE
+  if (ctx.pair!=null && ctx.side!=null) {
+    const cur = (active?.r1?.[ctx.pair] ?? {A:'',B:''})[
+      ctx.side===0 ? 'A' : 'B'
+    ]
+    if (cur === code) return false
+  }
+
+  // controllo girone all'italiana
+  if (ctx.itaIndex!=null) {
+    const cur = active?.slots?.[ctx.itaIndex]
+    if (cur === code) return false
+  }
+
+  return usedCodesGlobal.has(code)
+}
 // Calcolo livelli (profondità) rispetto al PRIMO tabellone dell’array
 // Livelli in sequenza (sinistra→destra): L1, L2, L3...
 const bracketLevels = useMemo(() => {
@@ -1495,7 +1513,7 @@ style={{
           <option value="-">—</option>
           <option value="BYE">BYE</option>
         {slotOptions.map(op=>{
-  const dis = isTakenElsewhere(op, { pair:i, side:0 })
+  const dis = isTakenElsewhere(op, { preIndex:i, side:0 })
   return (
     <option 
       key={`p-a-${i}-${op}`}
@@ -1528,7 +1546,7 @@ style={{
           <option value="-">—</option>
           <option value="BYE">BYE</option>
          {slotOptions.map(op=>{
-  const dis = isTakenElsewhere(op, { pair:i, side:1 })
+ const dis = isTakenElsewhere(op, { preIndex:i, side:1 })
   return (
     <option 
       key={`p-b-${i}-${op}`}
