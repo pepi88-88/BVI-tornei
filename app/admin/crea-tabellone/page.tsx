@@ -319,7 +319,7 @@ function buildPSELayout(title:string,nTeams:number){
       id:`${title.toUpperCase()}-P${i+1}`,
       round:0,
       mIndex:i,
-      left:0,
+     left:-CARD_W-120,
       top:i*(CARD_H+ROW_GAP),
       code:`P${i+1}`
     })
@@ -1459,7 +1459,7 @@ const ENTER = Math.round(50 * (CARD_W / 224))
             </svg>
 {active.type === 'PSE' && active.preNodes && (
   <div className="absolute top-4 left-4">
-    {active.preNodes.map((n)=>(
+   {active.preNodes.map((n)=>(
       <div
         key={n.id}
         className="absolute card p-3 shadow-lg"
@@ -1475,6 +1475,9 @@ const ENTER = Math.round(50 * (CARD_W / 224))
             {n.code} — {active.title}
           </div>
         </div>
+         <div className="text-[10px] opacity-50 font-mono mb-2">
+  M{n.mIndex+1}
+</div>
 
         <select
           className="input w-full h-10 mb-2"
