@@ -1457,38 +1457,38 @@ const ENTER = Math.round(50 * (CARD_W / 224))
                 )
               })}
             </svg>
-{active.type === 'PSE' && active.preNodes && (
+{active.type === 'PSE' && active.pre && (
   <div 
   className="absolute top-4"
   style={{ left:0 }}
 >
-   {active.preNodes.map((n)=>(
+   {active.pre.map((m,i)=>(
       <div
-        key={n.id}
+       key={`pre-${i}`}
         className="absolute card p-3 shadow-lg"
         style={{
           width:CARD_W,
           height:CARD_H,
-          left:n.left,
-          top:n.top
+          left:0,
+top:i*(CARD_H+ROW_GAP)
         }}
       >
         <div className="flex items-center justify-between mb-2">
           <div className="text-[11px] uppercase opacity-70">
-            {n.code} — {active.title}
+           P{i+1} — {active.title}
           </div>
         </div>
          <div className="text-[10px] opacity-50 font-mono mb-2">
-  M{n.mIndex+1}
+  M{i+1}
 </div>
 
         <select
           className="input w-full h-10 mb-2"
-          value={active.pre?.[n.mIndex]?.A || '-'}
+         value={m.A || '-'}
           onChange={(e)=>{
             const pre = [...(active.pre || [])]
-            pre[n.mIndex] = {
-              ...(pre[n.mIndex] || {A:'-',B:'-'}),
+            pre[i] = {
+              ...(pre[i] || {A:'-',B:'-'}),
               A:e.target.value
             }
             patchActive({pre})
@@ -1498,10 +1498,10 @@ const ENTER = Math.round(50 * (CARD_W / 224))
           <option value="-">—</option>
           <option value="BYE">BYE</option>
         {slotOptions.map(op=>{
-  const dis = isTakenElsewhere(op, { pair:n.mIndex, side:0 })
+  const dis = isTakenElsewhere(op, { pair:i, side:0 })
   return (
     <option 
-      key={`p-a-${n.mIndex}-${op}`} 
+      key={`p-a-${i}-${op}`}
       value={op}
       disabled={dis}
     >
@@ -1513,11 +1513,11 @@ const ENTER = Math.round(50 * (CARD_W / 224))
 
         <select
           className="input w-full h-10"
-          value={active.pre?.[n.mIndex]?.B || '-'}
+          value={m.B || '-'}
           onChange={(e)=>{
             const pre = [...(active.pre || [])]
-            pre[n.mIndex] = {
-              ...(pre[n.mIndex] || {A:'-',B:'-'}),
+           pre[i] = {
+              ...(pre[i] || {A:'-',B:'-'}),
               B:e.target.value
             }
             patchActive({pre})
@@ -1527,10 +1527,10 @@ const ENTER = Math.round(50 * (CARD_W / 224))
           <option value="-">—</option>
           <option value="BYE">BYE</option>
          {slotOptions.map(op=>{
-  const dis = isTakenElsewhere(op, { pair:n.mIndex, side:1 })
+  const dis = isTakenElsewhere(op, { pair:i, side:1 })
   return (
     <option 
-      key={`p-b-${n.mIndex}-${op}`} 
+      key={`p-b-${i}-${op}`}
       value={op}
       disabled={dis}
     >
