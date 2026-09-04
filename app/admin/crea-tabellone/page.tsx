@@ -1421,21 +1421,14 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 >
             {/* SVG connettori */}
             <svg ref={svgRef} width={seLayout.width} height={seLayout.height} className="absolute top-4 left-4" style={{ overflow: 'visible' }}>
-             {active.type === 'PSE' && active.preNodes?.map((p, i) => {
-  const target = seLayout.byRound[0]?.[Math.floor(i / 2)]
-  if (!target) return null
+           {active.type === 'PSE' && active.preNodes?.map((p, i) => {
 
   const startX = p.left + CARD_W
   const startY = p.top + CARD_H / 2
 
-  const endX = target.left
-  const endY = target.top + CARD_H / 2
-
-  const midX = (startX + endX) / 2
-
   return (
     <g key={`pre-line-${i}`} stroke={active.color} strokeWidth={3} fill="none">
-      <path d={`M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`} />
+      <path d={`M ${startX} ${startY} H ${startX + 50}`} />
     </g>
   )
 })}
@@ -1465,25 +1458,29 @@ const ENTER = Math.round(50 * (CARD_W / 224))
    {active.pre.map((m,i)=>(
       <div
        key={`pre-${i}`}
-        className="absolute card p-3 shadow-lg"
-        style={{
-          width:CARD_W,
-          height:CARD_H,
-          left:0,
-top:i*(CARD_H+ROW_GAP)
-        }}
+       className="absolute card p-3 shadow-lg"
+style={{
+  width:CARD_W,
+  height:CARD_H,
+  left:0,
+  top:i*(CARD_H+ROW_GAP)
+}}
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-[11px] uppercase opacity-70">
-           P{i+1} — {active.title}
-          </div>
-        </div>
-         <div className="text-[10px] opacity-50 font-mono mb-2">
-  M{i+1}
-</div>
+       <div className="flex items-center justify-between mb-2">
+  <div className="text-[11px] uppercase opacity-70">
+    P{i+1} — {active.title}
+  </div>
 
+  <div className="text-[10px] opacity-50 font-mono">
+    M{i+1}
+  </div>
+</div>
+ <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 text-xs opacity-70 hide-letter" aria-hidden>
+            A
+          </div>
         <select
-          className="input w-full h-10 mb-2"
+        className="input flex-1 h-10"
          value={m.A || '-'}
           onChange={(e)=>{
             const pre = [...(active.pre || [])]
@@ -1510,9 +1507,13 @@ top:i*(CARD_H+ROW_GAP)
   )
 })}
         </select>
-
+            </div>
+ <div className="flex items-center gap-2">
+          <div className="w-8 text-xs opacity-70 hide-letter" aria-hidden>
+            B
+          </div>
         <select
-          className="input w-full h-10"
+         className="input flex-1 h-10"
           value={m.B || '-'}
           onChange={(e)=>{
             const pre = [...(active.pre || [])]
@@ -1539,12 +1540,13 @@ top:i*(CARD_H+ROW_GAP)
   )
 })}
         </select>
-
+ </div>
       </div>
     ))}
   </div>
 )}
           {/* Collegamenti P → R */}
+{/* Linee uscita P */}
 <svg
  width={seLayout.width}
  height={seLayout.height}
@@ -1553,17 +1555,12 @@ top:i*(CARD_H+ROW_GAP)
 >
 {active.pre?.map((_,i)=>{
 
-  const target = seLayout.nodes[i]
-
-  if(!target) return null
-
-  const y1 = i*(CARD_H+ROW_GAP)+CARD_H/2
-  const y2 = target.top+CARD_H/2
+  const y = i*(CARD_H+ROW_GAP)+CARD_H/2
 
   return (
     <path
       key={`p-line-${i}`}
-      d={`M ${CARD_W} ${y1} H ${target.left-40} V ${y2}`}
+      d={`M ${CARD_W} ${y} H ${CARD_W + 60}`}
       stroke={active.color}
       strokeWidth={3}
       fill="none"
@@ -1571,7 +1568,7 @@ top:i*(CARD_H+ROW_GAP)
   )
 
 })}
-</svg>  
+</svg>
             {/* Cards */}
 <div 
   className="absolute top-4" 
