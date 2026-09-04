@@ -316,13 +316,13 @@ function buildPSELayout(title:string,nTeams:number){
 
   for (let i = 0; i < preMatches; i++) {
     preNodes.push({
-      id:`${title.toUpperCase()}-P${i+1}`,
-      round:0,
-      mIndex:i,
-     left:-CARD_W-120,
-      top:i*(CARD_H+ROW_GAP),
-      code:`P${i+1}`
-    })
+ id:`${title.toUpperCase()}-P${i+1}`,
+ round:0,
+ mIndex:i,
+ left:0,
+ top:i*(CARD_H+ROW_GAP),
+ code:`P${i+1}`
+})
   }
 
   return {
@@ -1458,7 +1458,10 @@ const ENTER = Math.round(50 * (CARD_W / 224))
               })}
             </svg>
 {active.type === 'PSE' && active.preNodes && (
-  <div className="absolute top-4 left-4">
+  <div 
+  className="absolute top-4"
+  style={{ left:0 }}
+>
    {active.preNodes.map((n)=>(
       <div
         key={n.id}
@@ -1555,13 +1558,7 @@ const ENTER = Math.round(50 * (CARD_W / 224))
       const pair = n.mIndex
       const m = active.r1?.[pair] || { A: '-', B: '-' }
 
-const pseWinnerA = active.type === 'PSE'
-  ? `Vincente P${pair*2+1}`
-  : m.A
 
-const pseWinnerB = active.type === 'PSE'
-  ? `Vincente P${pair*2+2}`
-  : m.B
       return (
         <div key={n.id} className="absolute card p-3 shadow-lg" style={{ width: CARD_W, height: CARD_H, left: n.left, top: n.top }}>
           <div className="flex items-center justify-between mb-2">
@@ -1571,11 +1568,7 @@ const pseWinnerB = active.type === 'PSE'
 
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 text-xs opacity-70 hide-letter" aria-hidden>A</div>
-            {active.type === 'PSE' ? (
-  <div className="input flex-1 h-10 flex items-center px-3 text-sm">
-    {pseWinnerA}
-  </div>
-) : (
+          
   <select
     className="input flex-1 h-10"
     value={m.A}
@@ -1594,17 +1587,11 @@ const pseWinnerB = active.type === 'PSE'
       )
     })}
   </select>
-)}
           </div>
 
           <div className="flex items-center gap-2">
             <div className="w-8 text-xs opacity-70 hide-letter" aria-hidden>B</div>
 
-           {active.type === 'PSE' ? (
-  <div className="input flex-1 h-10 flex items-center px-3 text-sm">
-    {pseWinnerB}
-  </div>
-) : (
   <select
     className="input flex-1 h-10"
     value={m.B}
@@ -1623,7 +1610,6 @@ const pseWinnerB = active.type === 'PSE'
       )
     })}
   </select>
-)}
           </div>
         </div>
       )
