@@ -1481,28 +1481,27 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
 
 {/* QUI INSERISCI P → R */}
-{active.type === 'PSE' && Array.from({ length: 5 }).map((_, i) => {
+{active.type === 'PSE' && Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_, i) => {
 
- const y = i*(CARD_H+ROW_GAP)+CARD_H/2
+  const target = seLayout.nodes[Math.floor(i/2)]
 
- const x = i * 50
+  if (!target) return null
 
- return (
-  <g key={`test-${i}`} stroke={active.color} strokeWidth={3} fill="none">
+  const startX = 40 + CARD_W
 
-    <path d={`M ${x} ${y} H ${x + 80}`} />
+  const y = 16 + i*(CARD_H+ROW_GAP)+CARD_H/2
 
-    <text
-      x={x}
-      y={y-8}
-      fill="white"
-      fontSize="12"
-    >
-      X={x}
-    </text>
+  const endX = target.left + CARD_W + 40
 
-  </g>
- )
+  return (
+    <path
+      key={`pse-link-${i}`}
+      d={`M ${startX} ${y} H ${endX}`}
+      stroke={active.color}
+      strokeWidth={3}
+      fill="none"
+    />
+  )
 
 })}
 </svg>
