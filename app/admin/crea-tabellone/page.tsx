@@ -1451,6 +1451,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   )
 })}
                {seLayout.nodes.map((n, idx) => {
+  if (active.type === 'PSE' && n.round === 1) return null
                 if (n.round === 1) return null
                 const A = seLayout.nodes[n.fromA!], B = seLayout.nodes[n.fromB!]
                 const ca = centerOf(A), cb = centerOf(B), c = centerOf(n)
@@ -1469,9 +1470,9 @@ const ENTER = Math.round(50 * (CARD_W / 224))
               })}
             </svg>
 {active.type === 'PSE' && active.pre && (
-  <div 
-  className="absolute top-4"
-  style={{ left:0 }}
+ <div 
+ className="absolute top-4 z-20"
+ style={{ left:0 }}
 >
    {active.pre.map((m,i)=>(
       <div
