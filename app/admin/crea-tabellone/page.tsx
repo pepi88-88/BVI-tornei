@@ -308,7 +308,7 @@ function buildPSELayout(title:string,nTeams:number){
   const offset = 80
 
   const se = buildSELayout(title,nTeams,offset,0)
-const preOffset = 40
+
   const size = nextPow2(nTeams)
   const preMatches = size / 2
 
@@ -316,13 +316,13 @@ const preOffset = 40
 
   for (let i = 0; i < preMatches; i++) {
     preNodes.push({
- id:`${title.toUpperCase()}-P${i+1}`,
- round:0,
- mIndex:i,
- left:-preOffset,
- top:i*(CARD_H+ROW_GAP),
- code:`P${i+1}`
-})
+      id:`${title.toUpperCase()}-P${i+1}`,
+      round:0,
+      mIndex:i,
+      left:0,
+      top:i*(CARD_H+ROW_GAP),
+      code:`P${i+1}`
+    })
   }
 
   return {
@@ -1484,11 +1484,9 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
   if (!target) return null
 
-  const startX = CARD_W + 64
-  const startY = i * (CARD_H + ROW_GAP) + CARD_H / 2
-
-  const endX = target.left
-
+  const startX = CARD_W
+const startY = i*(CARD_H+ROW_GAP)+CARD_H/2
+const endX = target.left
   return (
     <path
       key={`p-r-${i}`}
@@ -1505,7 +1503,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 {active.type === 'PSE' && active.pre && (
  <div 
  className="absolute top-4 z-20"
- style={{ left:40 }}
+ style={{ left:0 }}
 >
  {Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>(
       <div
