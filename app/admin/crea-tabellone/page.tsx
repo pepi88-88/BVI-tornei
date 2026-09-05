@@ -1439,17 +1439,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 >
             {/* SVG connettori */}
             <svg ref={svgRef} width={seLayout.width} height={seLayout.height} className="absolute top-4 left-4" style={{ overflow: 'visible' }}>
-           {active.type === 'PSE' && active.preNodes?.map((p, i) => {
-
-  const startX = p.left + CARD_W
-  const startY = p.top + CARD_H / 2
-
-  return (
-    <g key={`pre-line-${i}`} stroke={active.color} strokeWidth={3} fill="none">
-      <path d={`M ${startX} ${startY} H ${startX + 50}`} />
-    </g>
-  )
-})}
+        
       {active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
 
   if (n.round === 1) return null
