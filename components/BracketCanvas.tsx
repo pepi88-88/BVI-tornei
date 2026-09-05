@@ -899,7 +899,7 @@ if (bracket.type === 'PSE' && pseLayout) {
 
 
 {/* BOX P */}
-{se.pre?.map((p,i)=>(
+{se.preNodes?.map((p,i)=>(
 
   <div
     key={`pre-${i}`}
