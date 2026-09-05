@@ -1487,11 +1487,11 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
   if (!target) return null
 
- const startX = CARD_W + 40
+ const startX = CARD_W 
 
-  const y = 9 + i*(CARD_H+ROW_GAP)+CARD_H/2
+  const y = 10 + i*(CARD_H+ROW_GAP)+CARD_H/2
 
- const endX = target.left
+const endX = target.left - (CARD_W + 40)
 
   return (
     <path
