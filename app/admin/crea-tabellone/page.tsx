@@ -1623,9 +1623,9 @@ style={{
 </svg>
             {/* Cards */}
 <div 
-  className="absolute top-4" 
+  className={`absolute top-4 ${active.type === 'PSE' ? '' : 'left-4'}`}
   style={{ 
-    left: active.type === 'PSE' ? CARD_W + 120 : 0,
+    left: active.type === 'PSE' ? CARD_W + 120 : undefined,
     width: seLayout.width, 
     height: seLayout.height 
   }}
