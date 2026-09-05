@@ -1450,24 +1450,57 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-               {seLayout.nodes.map((n, idx) => {
-  if (active.type === 'PSE' && n.round === 1) return null
-                if (n.round === 1) return null
-                const A = seLayout.nodes[n.fromA!], B = seLayout.nodes[n.fromB!]
-                const ca = centerOf(A), cb = centerOf(B), c = centerOf(n)
-                const SHORT = Math.round(24 * (CARD_W / 224)) // 224 ≈ 320*0.7 di prima
-const ENTER = Math.round(50 * (CARD_W / 224))
-                const midAX = A.left + CARD_W + SHORT
-                const midBX = B.left + CARD_W + SHORT
-                const dstX  = n.left - ENTER
-                return (
-                  <g key={`ln-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
-                    <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
-                    <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
-                    <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
-                  </g>
-                )
-              })}
+             {active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
+
+  if (n.round === 1) return null
+
+  const A = seLayout.nodes[n.fromA!]
+  const B = seLayout.nodes[n.fromB!]
+
+  const ca = centerOf(A)
+  const cb = centerOf(B)
+  const c = centerOf(n)
+
+  const SHORT = Math.round(24 * (CARD_W / 224))
+  const ENTER = Math.round(50 * (CARD_W / 224))
+
+  const midAX = A.left + CARD_W + SHORT
+  const midBX = B.left + CARD_W + SHORT
+  const dstX = n.left - ENTER
+
+  return (
+    <g key={`ln-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
+      <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
+      <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
+      <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
+    </g>
+  )
+})}
+        {active.type === 'PSE' && active.pre?.map((_,i)=>{
+
+  const target = seLayout.byRound[0]?.[Math.floor(i/2)]
+
+  if (!target) return null
+
+  const startX = CARD_W
+  const startY = i*(CARD_H+ROW_GAP)+CARD_H/2
+
+  const endX = target.left
+  const endY = target.top + CARD_H/2
+
+  const midX = endX - 60
+
+  return (
+    <path
+      key={`pse-link-${i}`}
+      d={`M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`}
+      stroke={active.color}
+      strokeWidth={3}
+      fill="none"
+    />
+  )
+
+})}       
             </svg>
 {active.type === 'PSE' && active.pre && (
  <div 
