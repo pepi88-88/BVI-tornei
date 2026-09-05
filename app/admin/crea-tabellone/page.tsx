@@ -1509,7 +1509,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 {active.type === 'PSE' && active.pre && (
  <div 
  className="absolute top-4 z-20"
- style={{ left:0 }}
+ style={{ left:40 }}
 >
  {Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>(
       <div
