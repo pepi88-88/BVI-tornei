@@ -1439,11 +1439,14 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 >
             {/* SVG connettori */}
 <svg 
-  ref={svgRef} 
-  width={seLayout.width} 
-  height={seLayout.height} 
-  className="absolute top-4 left-4" 
-  style={{ overflow: 'visible' }}
+ ref={svgRef}
+ width={seLayout.width}
+ height={seLayout.height}
+ className="absolute top-4"
+ style={{ 
+   left: active.type === 'PSE' ? CARD_W + 40 : 16,
+   overflow:'visible'
+ }}
 >
 
 {active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
@@ -1480,22 +1483,25 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 {/* QUI INSERISCI P → R */}
 {active.type === 'PSE' && Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_, i) => {
 
-  const target = seLayout.nodes[i]
+ const target = seLayout.nodes[Math.floor(i/2)]
 
-  if (!target) return null
+ if (!target) return null
 
-  const startX = CARD_W
-const startY = i*(CARD_H+ROW_GAP)+CARD_H/2
-const endX = target.left
-  return (
-    <path
-      key={`p-r-${i}`}
-      d={`M ${startX} ${startY} H ${endX}`}
-      stroke={active.color}
-      strokeWidth={3}
-      fill="none"
-    />
-  )
+ const startX = CARD_W
+
+ const y = i*(CARD_H+ROW_GAP)+CARD_H/2
+
+ const endX = target.left
+
+ return (
+  <path
+   key={`pse-link-${i}`}
+   d={`M ${startX} ${y} H ${endX}`}
+   stroke={active.color}
+   strokeWidth={3}
+   fill="none"
+  />
+ )
 
 })}
 
