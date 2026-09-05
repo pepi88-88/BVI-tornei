@@ -1195,7 +1195,16 @@ const bracketLevels = useMemo(() => {
 const svgRef = useRef<SVGSVGElement>(null)
 
 const seLayout = useMemo(() => {
-  if (!active) return { nodes: [], rounds: 1, width: 0, height: 0, byRound: [] as Node[][], topOffset: 0, roundsCount: 1 }
+ if (!active) return { 
+  nodes: [], 
+  rounds: 1, 
+  width: 0, 
+  height: 0, 
+  byRound: [] as Node[][], 
+  topOffset: 0, 
+  roundsCount: 1,
+  preNodes: [] as Node[]
+}
 
   if (active.type === 'PSE') {
     return buildPSELayout(`${active.title}`, active.nTeams)
@@ -1535,7 +1544,7 @@ const endX = target.left
  }}
 >
 
-{seLayout.preNodes?.map((p,i)=>(
+{(seLayout.preNodes || []).map((p,i)=>(
       <div
        key={`pre-${i}`}
        className="absolute card p-3 shadow-lg"
