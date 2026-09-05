@@ -1525,12 +1525,13 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   const c = centerOf(n)
 
   const SHORT = Math.round(24 * (CARD_W / 224))
-  const ENTER = Math.round(50 * (CARD_W / 224))
+const ENTER = Math.round(50 * (CARD_W / 224))
 
-  const midAX = A.left + CARD_W + SHORT
-  const midBX = B.left + CARD_W + SHORT
-  const dstX = n.left - ENTER
+const extraPSE = active.type === 'PSE' ? 60 : 0
 
+const midAX = A.left + CARD_W + SHORT + extraPSE
+const midBX = B.left + CARD_W + SHORT + extraPSE
+const dstX = n.left - ENTER
   return (
     <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
       <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
