@@ -1490,7 +1490,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-     {active.type === 'PSE' && Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>{
+    {active.type === 'PSE' && Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>{
 
   const target = seLayout.nodes[Math.floor(i/2)]
 
@@ -1501,7 +1501,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   return (
     <path
       key={`pse-link-${i}`}
-      d={`M ${CARD_W} ${y} H ${target.left}`}
+      d={`M ${CARD_W + 40} ${y} H ${target.left}`}
       stroke={active.color}
       strokeWidth={3}
       fill="none"
@@ -1526,21 +1526,31 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
   const pseOffset = active.type === 'PSE' ? CARD_W + 120 : 0
 
-const startAX = A.left + CARD_W + pseOffset
-const startBX = B.left + CARD_W + pseOffset
+const startAX = A.left + CARD_W
+const startBX = B.left + CARD_W
 
+// parentesi subito dopo il box R
 const bracketX = startAX + 20
-const dstX = n.left - 50
-  return (
-    <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
+
+// ingresso diretto al box Z
+const endX = n.left
+return (
+  <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
+
+    {/* uscita R1 */}
     <path d={`M ${startAX} ${ca.cy} H ${bracketX}`} />
-<path d={`M ${startBX} ${cb.cy} H ${bracketX}`} />
 
-<path d={`M ${bracketX} ${ca.cy} V ${cb.cy}`} />
+    {/* uscita R2 */}
+    <path d={`M ${startBX} ${cb.cy} H ${bracketX}`} />
 
-<path d={`M ${bracketX} ${(ca.cy + cb.cy)/2} H ${dstX} V ${c.cy} H ${n.left}`} />
-    </g>
-  )
+    {/* parentesi */}
+    <path d={`M ${bracketX} ${ca.cy} V ${cb.cy}`} />
+
+    {/* ingresso Z */}
+    <path d={`M ${bracketX} ${(ca.cy + cb.cy)/2} H ${endX}`} />
+
+  </g>
+)
 })}             
             </svg>
 {active.type === 'PSE' && active.pre && (
