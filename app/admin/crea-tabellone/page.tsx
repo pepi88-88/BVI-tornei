@@ -1531,7 +1531,7 @@ const endX = target.left
  style={{ left:40 }}
 >
 
-{seLayout.preNodes?.map((p,i)=>(
+{seLayout.preNodes.map((p,i)=>(
       <div
        key={`pre-${i}`}
        className="absolute card p-3 shadow-lg"
