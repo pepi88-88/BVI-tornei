@@ -898,7 +898,39 @@ if (bracket.type === 'PSE' && pseLayout) {
           </svg>
 
 
+{/* BOX P */}
+{se.pre?.map((p,i)=>(
 
+  <div
+    key={`pre-${i}`}
+    className="absolute card p-3 shadow-lg"
+    style={{
+      width:CARD_W,
+      height:CARD_H,
+      left:0,
+      top:i*(CARD_H+ROW_GAP)
+    }}
+  >
+
+    <div className="text-[11px] uppercase opacity-70 mb-2">
+      P{i+1} — {bracket.title}
+    </div>
+
+    <div>
+      {bracket.pre?.[i]?.A || '-'}
+    </div>
+
+    <div className="my-1 text-neutral-400">
+      vs
+    </div>
+
+    <div>
+      {bracket.pre?.[i]?.B || '-'}
+    </div>
+
+  </div>
+
+))}
           {/* BOX R/Z/Y/X/W */}
           <div
             className="absolute top-4 left-4"
