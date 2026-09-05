@@ -1438,9 +1438,15 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   }}
 >
             {/* SVG connettori */}
-            <svg ref={svgRef} width={seLayout.width} height={seLayout.height} className="absolute top-4 left-4" style={{ overflow: 'visible' }}>
-        
-      {active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
+<svg 
+  ref={svgRef} 
+  width={seLayout.width} 
+  height={seLayout.height} 
+  className="absolute top-4 left-4" 
+  style={{ overflow: 'visible' }}
+>
+
+{active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
 
   if (n.round === 1) return null
 
@@ -1459,31 +1465,43 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   const midAX = A.left + CARD_W + SHORT
   const midBX = B.left + CARD_W + SHORT
 
-  // per PSE aumentiamo la distanza perché R è più a destra
   const dstX = n.left - ENTER
 
   return (
     <g key={`ln-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
-
-      <path 
-        d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} 
-      />
-
-      <path 
-        d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} 
-      />
-
-      <path 
-        d={`M ${dstX} ${c.cy} H ${n.left}`} 
-      />
-
+      <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
+      <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
+      <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
     </g>
   )
 })}
-   
 
-         
-            </svg>
+
+{/* QUI INSERISCI P → R */}
+{active.type === 'PSE' && Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_, i) => {
+
+  const target = seLayout.nodes[i]
+
+  if (!target) return null
+
+  const startX = CARD_W + 40
+  const startY = i * (CARD_H + ROW_GAP) + CARD_H / 2
+
+  const endX = target.left
+
+  return (
+    <path
+      key={`p-r-${i}`}
+      d={`M ${startX} ${startY} H ${endX}`}
+      stroke={active.color}
+      strokeWidth={3}
+      fill="none"
+    />
+  )
+
+})}
+
+</svg>
 {active.type === 'PSE' && active.pre && (
  <div 
  className="absolute top-4 z-20"
