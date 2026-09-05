@@ -1606,7 +1606,7 @@ style={{
 <div 
   className={`absolute top-4 ${active.type === 'PSE' ? '' : 'left-4'}`}
   style={{ 
-   left: active.type === 'PSE' ? 80 : undefined,
+  left: active.type === 'PSE' ? CARD_W + 40 : undefined,
     width: seLayout.width, 
     height: seLayout.height 
   }}
