@@ -1489,9 +1489,9 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
  const startX = CARD_W + 40
 
-  const y = 8 + i*(CARD_H+ROW_GAP)+CARD_H/2
+  const y = 9 + i*(CARD_H+ROW_GAP)+CARD_H/2
 
-  const endX = target.left + CARD_W + 40
+ const endX = target.left
 
   return (
     <path
