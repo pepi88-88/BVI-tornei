@@ -1481,30 +1481,31 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
 
 {/* QUI INSERISCI P → R */}
-{active.type === 'PSE' && Array.from({ length: 8 }).map((_, i) => {
+{/* TEST ASSE X */}
+{active.type === 'PSE' && Array.from({ length: 5 }).map((_, i) => {
 
-  const y = i*(CARD_H+ROW_GAP)+CARD_H/2
+ const y = i*(CARD_H+ROW_GAP)+CARD_H/2
 
-  return (
-    <g key={`test-${i}`} stroke={active.color} strokeWidth={3} fill="none">
+ const x = i * 50
 
-      {/* linea con vari offset X */}
-      <path d={`M ${i*50} ${y} H ${i*50 + 100}`} />
+ return (
+  <g key={`test-${i}`} stroke={active.color} strokeWidth={3} fill="none">
 
-      <text
-        x={i*50}
-        y={y-5}
-        fill="white"
-        fontSize="12"
-      >
-        X={i*50}
-      </text>
+    <path d={`M ${x} ${y} H ${x + 80}`} />
 
-    </g>
-  )
+    <text
+      x={x}
+      y={y-8}
+      fill="white"
+      fontSize="12"
+    >
+      X={x}
+    </text>
+
+  </g>
+ )
 
 })}
-
 </svg>
 {active.type === 'PSE' && active.pre && (
  <div 
