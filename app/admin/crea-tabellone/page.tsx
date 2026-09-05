@@ -1476,22 +1476,18 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-       {active.type === 'PSE' && active.pre?.map((_,i)=>{
+      {active.type === 'PSE' && active.pre?.map((_,i)=>{
 
   const target = seLayout.nodes[Math.floor(i/2)]
 
   if (!target) return null
 
-  const startX = CARD_W + 50
-  const startY = i*(CARD_H+ROW_GAP)+CARD_H/2
-
-  const endX = target.left
-  const endY = target.top + CARD_H/2
+  const y = i*(CARD_H+ROW_GAP)+CARD_H/2
 
   return (
     <path
       key={`pse-link-${i}`}
-      d={`M ${startX} ${startY} H ${endX - 40} V ${endY} H ${endX}`}
+      d={`M ${CARD_W} ${y} H ${target.left}`}
       stroke={active.color}
       strokeWidth={3}
       fill="none"
