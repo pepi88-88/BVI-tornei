@@ -1509,49 +1509,63 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   )
 
 })}
-  {/* Collegamenti R → Z solo PSE */}
-{active.type === 'PSE' && seLayout.nodes.map((n, idx) => {
+ {/* Collegamenti R → Z PSE */}
+{active.type === 'PSE' && (() => {
 
-  // solo i round successivi al primo (Z, finale ecc.)
-  if (n.round === 1) return null
+  const R1 = seLayout.nodes[0]
+  const R2 = seLayout.nodes[1]
+  const R3 = seLayout.nodes[2]
+  const R4 = seLayout.nodes[3]
 
-  const A = seLayout.nodes[n.fromA!]
-  const B = seLayout.nodes[n.fromB!]
+  const Z1 = seLayout.nodes[4]
+  const Z2 = seLayout.nodes[5]
 
-  if (!A || !B) return null
+  if (!R1 || !R2 || !R3 || !R4 || !Z1 || !Z2) return null
 
-  const ca = centerOf(A)
-  const cb = centerOf(B)
-  const c = centerOf(n)
 
-  const pseOffset = active.type === 'PSE' ? CARD_W + 120 : 0
+  const drawSemi = (A:Node, B:Node, Z:Node, key:string) => {
 
-const startAX = A.left + CARD_W
-const startBX = B.left + CARD_W
+    const ay = A.top + CARD_H/2
+    const by = B.top + CARD_H/2
 
-// parentesi subito dopo il box R
-const bracketX = startAX + 20
+    const startA = A.left + CARD_W
+    const startB = B.left + CARD_W
 
-// ingresso diretto al box Z
-const endX = n.left
-return (
-  <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
+    // distanza dalla fine del box R
+    const bracketX = startA + 30
 
-    {/* uscita R1 */}
-    <path d={`M ${startAX} ${ca.cy} H ${bracketX}`} />
+    const centerY = (ay + by) / 2
 
-    {/* uscita R2 */}
-    <path d={`M ${startBX} ${cb.cy} H ${bracketX}`} />
 
-    {/* parentesi */}
-    <path d={`M ${bracketX} ${ca.cy} V ${cb.cy}`} />
+    return (
+      <g key={key} stroke={active.color} strokeWidth={3} fill="none">
 
-    {/* ingresso Z */}
-    <path d={`M ${bracketX} ${(ca.cy + cb.cy)/2} H ${endX}`} />
+        {/* uscita R sopra */}
+        <path d={`M ${startA} ${ay} H ${bracketX}`} />
 
-  </g>
-)
-})}             
+        {/* uscita R sotto */}
+        <path d={`M ${startB} ${by} H ${bracketX}`} />
+
+        {/* parentesi */}
+        <path d={`M ${bracketX} ${ay} V ${by}`} />
+
+        {/* entrata Z */}
+        <path d={`M ${bracketX} ${centerY} H ${Z.left}`} />
+
+      </g>
+    )
+  }
+
+
+  return (
+    <>
+      {drawSemi(R1,R2,Z1,'rz-1')}
+      {drawSemi(R3,R4,Z2,'rz-2')}
+    </>
+  )
+
+})()}
+         
             </svg>
 {active.type === 'PSE' && active.pre && (
  <div 
