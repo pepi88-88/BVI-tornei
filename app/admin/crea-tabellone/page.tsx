@@ -1443,7 +1443,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
  width={seLayout.width}
  height={seLayout.height}
  className="absolute top-4"
-style={{ 
+ style={{ 
    left: active.type === 'PSE' ? CARD_W + 40 : 16,
    overflow:'visible'
  }}
@@ -1512,7 +1512,7 @@ style={{
 
   const y = 10 + i*(CARD_H+ROW_GAP)+CARD_H/2
 
- const startX = 0 
+  const startX = 0 
 const endX = target.left
   return (
     <path
@@ -1530,13 +1530,12 @@ const endX = target.left
  className="absolute top-4 z-20"
  style={{ left:40 }}
 >
-
-{seLayout.preNodes.map((p,i)=>(
+ {Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>(
       <div
        key={`pre-${i}`}
        className="absolute card p-3 shadow-lg"
 style={{
-width:CARD_W,
+  width:CARD_W,
   height:CARD_H,
   left:0,
   top:i*(CARD_H+ROW_GAP)
@@ -1544,7 +1543,7 @@ width:CARD_W,
       >
        <div className="flex items-center justify-between mb-2">
   <div className="text-[11px] uppercase opacity-70">
- P{i+1} — {active.title}
+    P{i+1} — {active.title}
   </div>
 
   <div className="text-[10px] opacity-50 font-mono">
