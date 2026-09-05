@@ -1509,48 +1509,60 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   )
 
 })}
- {/* Collegamenti R → Z PSE */}
+{/* Collegamenti R → Z solo PSE */}
 {active.type === 'PSE' && (() => {
 
-  const R1 = seLayout.nodes[0]
-  const R2 = seLayout.nodes[1]
-  const R3 = seLayout.nodes[2]
-  const R4 = seLayout.nodes[3]
+  const R1 = seLayout.nodes.find(n => n.code === 'R1')
+  const R2 = seLayout.nodes.find(n => n.code === 'R2')
+  const R3 = seLayout.nodes.find(n => n.code === 'R3')
+  const R4 = seLayout.nodes.find(n => n.code === 'R4')
 
-  const Z1 = seLayout.nodes[4]
-  const Z2 = seLayout.nodes[5]
+  const Z1 = seLayout.nodes.find(n => n.code === 'Z1')
+  const Z2 = seLayout.nodes.find(n => n.code === 'Z2')
+
 
   if (!R1 || !R2 || !R3 || !R4 || !Z1 || !Z2) return null
 
 
-  const drawSemi = (A:Node, B:Node, Z:Node, key:string) => {
+  const drawConnector = (
+    top: Node,
+    bottom: Node,
+    target: Node,
+    key:string
+  ) => {
 
-    const ay = A.top + CARD_H/2
-    const by = B.top + CARD_H/2
+    const y1 = top.top + CARD_H / 2
+    const y2 = bottom.top + CARD_H / 2
 
-    const startA = A.left + CARD_W
-    const startB = B.left + CARD_W
+    const startX = top.left + CARD_W
 
-    // distanza dalla fine del box R
-    const bracketX = startA + 30
+    // distanza della parentesi dal box R
+    const bracketX = startX + 35
 
-    const centerY = (ay + by) / 2
+    const middleY = (y1 + y2) / 2
+
+    // arrivo poco prima del box Z
+    const endX = target.left - 10
 
 
     return (
-      <g key={key} stroke={active.color} strokeWidth={3} fill="none">
+      <g key={key}
+        stroke={active.color}
+        strokeWidth={3}
+        fill="none"
+      >
 
-        {/* uscita R sopra */}
-        <path d={`M ${startA} ${ay} H ${bracketX}`} />
+        {/* uscita R superiore */}
+        <path d={`M ${startX} ${y1} H ${bracketX}`} />
 
-        {/* uscita R sotto */}
-        <path d={`M ${startB} ${by} H ${bracketX}`} />
+        {/* uscita R inferiore */}
+        <path d={`M ${startX} ${y2} H ${bracketX}`} />
 
-        {/* parentesi */}
-        <path d={`M ${bracketX} ${ay} V ${by}`} />
+        {/* parentesi verticale */}
+        <path d={`M ${bracketX} ${y1} V ${y2}`} />
 
-        {/* entrata Z */}
-        <path d={`M ${bracketX} ${centerY} H ${Z.left}`} />
+        {/* collegamento verso Z */}
+        <path d={`M ${bracketX} ${middleY} H ${endX}`} />
 
       </g>
     )
@@ -1559,10 +1571,11 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
   return (
     <>
-      {drawSemi(R1,R2,Z1,'rz-1')}
-      {drawSemi(R3,R4,Z2,'rz-2')}
+      {drawConnector(R1,R2,Z1,'RZ1')}
+      {drawConnector(R3,R4,Z2,'RZ2')}
     </>
   )
+
 
 })()}
          
