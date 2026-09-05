@@ -917,7 +917,7 @@ if (bracket.type === 'PSE' && pseLayout) {
     </div>
 
     <div>
-      {bracket.pre?.[i]?.A || '-'}
+    {'-'}
     </div>
 
     <div className="my-1 text-neutral-400">
@@ -925,7 +925,7 @@ if (bracket.type === 'PSE' && pseLayout) {
     </div>
 
     <div>
-      {bracket.pre?.[i]?.B || '-'}
+      {'-'}
     </div>
 
   </div>
