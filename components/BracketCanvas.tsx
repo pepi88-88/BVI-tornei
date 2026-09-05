@@ -16,7 +16,7 @@ export type Bracket = {
   id: string
   title: string
   color: string
-  type: 'SE' | 'DE' | 'ITA'
+  type: 'SE' | 'PSE' | 'DE' | 'ITA'
   nTeams: number
   source: 'gironi'|'avulsa'|'eliminati'|'gironi+eliminati'
   fromTableId?: string
@@ -147,7 +147,34 @@ function buildSELayout(title:string, nTeams:number) {
   const height = Math.max(...nodes.map(n=>n.top),0)+CARD_H
   return { nodes, byRound, width, height }
 }
+function buildPSELayout(title:string, nTeams:number) {
 
+  const offset = 80
+
+  const se = buildSELayout(title, nTeams)
+
+  const size = nextPow2(nTeams)
+  const preMatches = size / 2
+
+  const preNodes: Node[] = []
+
+  for (let i = 0; i < preMatches; i++) {
+    preNodes.push({
+      id:`${title}-P${i+1}`,
+      round:0,
+      mIndex:i,
+      left:0,
+      top:i*(CARD_H+ROW_GAP),
+      code:`P${i+1}`
+    })
+  }
+
+  return {
+    ...se,
+    preNodes,
+    type:'PSE'
+  }
+}
 /* ===================== Helpers linee (DE) ===================== */
 const HLine = ({ x1, y, x2, width = 3, color = '#22c55e' }:{ x1:number; y:number; x2:number; width?:number; color?:string }) =>
   <path d={`M ${x1} ${y} H ${x2}`} stroke={color} strokeWidth={width} fill="none" />
@@ -220,7 +247,12 @@ const winnerSide = (code: string): 'A'|'B'|undefined => {
     () => bracket.type === 'SE' ? buildSELayout(bracket.title, bracket.nTeams) : null,
     [bracket.type, bracket.title, bracket.nTeams]
   )
-
+const pseLayout = useMemo(
+  () => bracket.type === 'PSE'
+    ? buildPSELayout(bracket.title, bracket.nTeams)
+    : null,
+  [bracket.type, bracket.title, bracket.nTeams]
+)
   /* =========================================================
      SINGOLA ELIMINAZIONE (SE)
   ========================================================= */
