@@ -1476,31 +1476,29 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-        {active.type === 'PSE' && active.pre?.map((_,i)=>{
+       {active.type === 'PSE' && active.pre?.map((_,i)=>{
 
-  const target = seLayout.byRound[0]?.[Math.floor(i/2)]
+  const target = seLayout.nodes[Math.floor(i/2)]
 
   if (!target) return null
 
-  const startX = CARD_W
+  const startX = CARD_W + 50
   const startY = i*(CARD_H+ROW_GAP)+CARD_H/2
 
   const endX = target.left
   const endY = target.top + CARD_H/2
 
-  const midX = endX - 60
-
   return (
     <path
       key={`pse-link-${i}`}
-      d={`M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`}
+      d={`M ${startX} ${startY} H ${endX - 40} V ${endY} H ${endX}`}
       stroke={active.color}
       strokeWidth={3}
       fill="none"
     />
   )
 
-})}       
+})}
             </svg>
 {active.type === 'PSE' && active.pre && (
  <div 
@@ -1713,15 +1711,32 @@ const winnerTop  = final.top + SE_FINAL_TUNE.boxDY
               const s1 = semis[0]?.code || 'SF1'
               const s2 = semis[1]?.code || 'SF2'
 
-              return (
-                <>
-                  <svg width={lineWidth} height={CARD_H} className="absolute" style={{ left: lineLeft, top: lineTop }}>
-                    <path d={`M 0 ${CARD_H/2} H ${lineWidth}`} stroke={active.color} strokeWidth={3} fill="none" />
-                  </svg>
-                  <div className="absolute card p-4 shadow-lg" style={{ width: CARD_W, height: CARD_H, left: winnerLeft, top: winnerTop }}>
-                    <div className="text-[11px] uppercase opacity-70 mb-2">VINCITORE TORNEO</div>
-                    <div className="text-sm text-neutral-300">Vincente {final.code} — {active.title}</div>
-                  </div>
+             return (
+  <>
+    {active.type !== 'PSE' && (
+      <>
+        <svg width={lineWidth} height={CARD_H} className="absolute" style={{ left: lineLeft, top: lineTop }}>
+          <path d={`M 0 ${CARD_H/2} H ${lineWidth}`} stroke={active.color} strokeWidth={3} fill="none" />
+        </svg>
+
+        <div 
+          className="absolute card p-4 shadow-lg" 
+          style={{ 
+            width: CARD_W, 
+            height: CARD_H, 
+            left: winnerLeft, 
+            top: winnerTop 
+          }}
+        >
+          <div className="text-[11px] uppercase opacity-70 mb-2">
+            VINCITORE TORNEO
+          </div>
+          <div className="text-sm text-neutral-300">
+            Vincente {final.code} — {active.title}
+          </div>
+        </div>
+      </>
+    )}
                   {enableThirdPlace && (
                     <div className="absolute card p-4 shadow-lg" style={{ width: CARD_W, height: CARD_H, left: final.left, top: final.top + CARD_H + 48 }}>
                       <div className="text-[11px] uppercase opacity-70 mb-2">3° / 4° posto — {active.title}</div>
