@@ -1654,8 +1654,12 @@ style={{
   >
     <option value="-">—</option>
     <option value="BYE">BYE</option>
-     {active.type === 'PSE' && active.pre?.map((_,i)=>(
-  <option key={`wp-a-${i}`} value={`Vincente P${i+1}`}>
+  {active.type === 'PSE' && 
+ Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>(
+  <option 
+    key={`wp-a-${i}`} 
+    value={`Vincente P${i+1}`}
+  >
     Vincente P{i+1}
   </option>
 ))}
@@ -1684,8 +1688,12 @@ style={{
     <option value="-">—</option>
     <option value="BYE">BYE</option>
      
-{active.type === 'PSE' && active.pre?.map((_,i)=>(
-  <option key={`wp-b-${i}`} value={`Vincente P${i+1}`}>
+{active.type === 'PSE' && 
+ Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>(
+  <option 
+    key={`wp-b-${i}`} 
+    value={`Vincente P${i+1}`}
+  >
     Vincente P{i+1}
   </option>
 ))}
