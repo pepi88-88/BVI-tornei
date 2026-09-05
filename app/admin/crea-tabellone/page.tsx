@@ -1489,9 +1489,8 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
   const y = 10 + i*(CARD_H+ROW_GAP)+CARD_H/2
 
-  const startX = CARD_W
-  const endX = target.left + 80
-
+  const startX = 0 
+const endX = target.left
   return (
     <path
       key={`pse-link-${i}`}
