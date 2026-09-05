@@ -1450,7 +1450,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-         {seLayout.nodes.map((n, idx) => {
+      {active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
 
   if (n.round === 1) return null
 
