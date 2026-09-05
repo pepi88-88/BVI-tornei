@@ -1505,7 +1505,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 {active.type === 'PSE' && active.pre && (
  <div 
  className="absolute top-4 z-20"
- style={{ left:0 }}
+ style={{ left:40 }}
 >
    {active.pre.map((m,i)=>(
       <div
@@ -1597,30 +1597,7 @@ style={{
     ))}
   </div>
 )}
-          {/* Collegamenti P → R */}
-{/* Linee uscita P */}
-<svg
- width={seLayout.width}
- height={seLayout.height}
- className="absolute top-4 left-4"
- style={{overflow:'visible'}}
->
-{active.pre?.map((_,i)=>{
-
-  const y = i*(CARD_H+ROW_GAP)+CARD_H/2
-
-  return (
-    <path
-      key={`p-line-${i}`}
-      d={`M ${CARD_W} ${y} H ${CARD_W + 60}`}
-      stroke={active.color}
-      strokeWidth={3}
-      fill="none"
-    />
-  )
-
-})}
-</svg>
+    
             {/* Cards */}
 <div 
   className={`absolute top-4 ${active.type === 'PSE' ? '' : 'left-4'}`}
@@ -1729,9 +1706,8 @@ style={{
               const lineLeft  = final.left + CARD_W + SE_FINAL_TUNE.lineDX
               const lineTop   = final.top + SE_FINAL_TUNE.lineDY
               const lineWidth = SE_FINAL_TUNE.lineLEN
-              const winnerLeft = lineLeft + lineWidth + 8 + SE_FINAL_TUNE.boxDX
-              const winnerTop  = final.top + SE_FINAL_TUNE.boxDY
-
+             const winnerLeft = lineLeft + lineWidth + 8 + SE_FINAL_TUNE.boxDX + (active.type === 'PSE' ? 80 : 0)
+const winnerTop  = final.top + SE_FINAL_TUNE.boxDY
               const rounds = seLayout.byRound.length
               const semis  = seLayout.byRound[rounds - 2] || []
               const s1 = semis[0]?.code || 'SF1'
