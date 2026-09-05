@@ -1450,12 +1450,14 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-             {active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
+         {seLayout.nodes.map((n, idx) => {
 
   if (n.round === 1) return null
 
   const A = seLayout.nodes[n.fromA!]
   const B = seLayout.nodes[n.fromB!]
+
+  if (!A || !B) return null
 
   const ca = centerOf(A)
   const cb = centerOf(B)
@@ -1466,13 +1468,25 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
   const midAX = A.left + CARD_W + SHORT
   const midBX = B.left + CARD_W + SHORT
+
+  // per PSE aumentiamo la distanza perché R è più a destra
   const dstX = n.left - ENTER
 
   return (
     <g key={`ln-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
-      <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
-      <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
-      <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
+
+      <path 
+        d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} 
+      />
+
+      <path 
+        d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} 
+      />
+
+      <path 
+        d={`M ${dstX} ${c.cy} H ${n.left}`} 
+      />
+
     </g>
   )
 })}
