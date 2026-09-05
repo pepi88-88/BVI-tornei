@@ -1768,7 +1768,7 @@ const winnerTop  = final.top + SE_FINAL_TUNE.boxDY
   style={{ 
     width: CARD_W, 
     height: CARD_H, 
-    left: final.left + CARD_W -40, 
+    left: final.left + CARD_W , 
     top: final.top + CARD_H + 80 
   }}
 >
