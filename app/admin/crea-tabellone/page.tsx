@@ -1449,8 +1449,9 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
  }}
 >
 
-{active.type !== 'PSE' && seLayout.nodes.map((n, idx) => {
+{seLayout.nodes.map((n, idx) => {
 
+  // il primo round non ha linee in ingresso
   if (n.round === 1) return null
 
   const A = seLayout.nodes[n.fromA!]
@@ -1462,19 +1463,41 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   const cb = centerOf(B)
   const c = centerOf(n)
 
-  const SHORT = Math.round(24 * (CARD_W / 224))
-  const ENTER = Math.round(50 * (CARD_W / 224))
+  // bordo destro dei due box sorgente
+  const startAX = A.left + CARD_W
+  const startBX = B.left + CARD_W
 
-  const midAX = A.left + CARD_W + SHORT
-  const midBX = B.left + CARD_W + SHORT
-
-  const dstX = n.left - ENTER
+  // punto dove si chiude la parentesi
+  const joinX = n.left - 40
 
   return (
-    <g key={`ln-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
-      <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
-      <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
-      <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
+    <g
+      key={`ln-${idx}`}
+      stroke={active.color}
+      strokeWidth={3}
+      fill="none"
+    >
+
+      {/* linea superiore */}
+      <path
+        d={`M ${startAX} ${ca.cy} H ${joinX}`}
+      />
+
+      {/* linea inferiore */}
+      <path
+        d={`M ${startBX} ${cb.cy} H ${joinX}`}
+      />
+
+      {/* verticale parentesi */}
+      <path
+        d={`M ${joinX} ${ca.cy} V ${cb.cy}`}
+      />
+
+      {/* uscita verso il box successivo */}
+      <path
+        d={`M ${joinX} ${c.cy} H ${n.left}`}
+      />
+
     </g>
   )
 })}
