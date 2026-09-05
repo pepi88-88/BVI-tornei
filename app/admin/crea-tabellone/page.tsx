@@ -1476,7 +1476,7 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
     </g>
   )
 })}
-      {active.type === 'PSE' && active.pre?.map((_,i)=>{
+     {active.type === 'PSE' && Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>{
 
   const target = seLayout.nodes[Math.floor(i/2)]
 
@@ -1495,13 +1495,43 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   )
 
 })}
+  {/* Collegamenti R → Z solo PSE */}
+{active.type === 'PSE' && seLayout.nodes.map((n, idx) => {
+
+  // solo i round successivi al primo (Z, finale ecc.)
+  if (n.round === 1) return null
+
+  const A = seLayout.nodes[n.fromA!]
+  const B = seLayout.nodes[n.fromB!]
+
+  if (!A || !B) return null
+
+  const ca = centerOf(A)
+  const cb = centerOf(B)
+  const c = centerOf(n)
+
+  const SHORT = Math.round(24 * (CARD_W / 224))
+  const ENTER = Math.round(50 * (CARD_W / 224))
+
+  const midAX = A.left + CARD_W + SHORT
+  const midBX = B.left + CARD_W + SHORT
+  const dstX = n.left - ENTER
+
+  return (
+    <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
+      <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
+      <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
+      <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
+    </g>
+  )
+})}             
             </svg>
 {active.type === 'PSE' && active.pre && (
  <div 
  className="absolute top-4 z-20"
  style={{ left:40 }}
 >
-   {active.pre.map((m,i)=>(
+ {Array.from({ length: nextPow2(active.nTeams) / 2 }).map((_,i)=>(
       <div
        key={`pre-${i}`}
        className="absolute card p-3 shadow-lg"
@@ -1527,7 +1557,7 @@ style={{
           </div>
         <select
         className="input flex-1 h-10"
-         value={m.A || '-'}
+        value={active.pre?.[i]?.A || '-'}
           onChange={(e)=>{
             const pre = [...(active.pre || [])]
             pre[i] = {
@@ -1560,7 +1590,7 @@ style={{
           </div>
         <select
          className="input flex-1 h-10"
-          value={m.B || '-'}
+         value={active.pre?.[i]?.B || '-'}
           onChange={(e)=>{
             const pre = [...(active.pre || [])]
            pre[i] = {
@@ -1734,7 +1764,15 @@ const winnerTop  = final.top + SE_FINAL_TUNE.boxDY
       </>
     )}
                   {enableThirdPlace && (
-                    <div className="absolute card p-4 shadow-lg" style={{ width: CARD_W, height: CARD_H, left: final.left, top: final.top + CARD_H + 48 }}>
+                   <div 
+  className="absolute card p-4 shadow-lg" 
+  style={{ 
+    width: CARD_W, 
+    height: CARD_H, 
+    left: final.left + CARD_W + 120, 
+    top: final.top + CARD_H + 80 
+  }}
+>
                       <div className="text-[11px] uppercase opacity-70 mb-2">3° / 4° posto — {active.title}</div>
                       <div className="text-sm text-neutral-300">Perdente {s1} — {active.title} vs Perdente {s2} — {active.title}</div>
                     </div>
