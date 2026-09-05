@@ -1524,11 +1524,13 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
   const cb = centerOf(B)
   const c = centerOf(n)
 
-  const startAX = A.left + CARD_W
-const startBX = B.left + CARD_W
+  const pseOffset = active.type === 'PSE' ? CARD_W + 120 : 0
 
-const bracketX = startAX + 80
-const dstX = n.left - 60
+const startAX = A.left + CARD_W + pseOffset
+const startBX = B.left + CARD_W + pseOffset
+
+const bracketX = startAX + 20
+const dstX = n.left - 50
   return (
     <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
     <path d={`M ${startAX} ${ca.cy} H ${bracketX}`} />
