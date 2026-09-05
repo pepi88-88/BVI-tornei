@@ -773,7 +773,201 @@ const Row = ({ side, text }: { side: 'A'|'B'; text: string }) => (
       </div>
     )
   }
+/* ===================== PSE ===================== */
 
+if (bracket.type === 'PSE' && pseLayout) {
+
+  const se = pseLayout
+  const W = localWinners
+
+  return (
+    <div className="bracket-scope relative">
+
+      <div className="mt-1 mb-4 flex justify-center">
+        <div
+          className="relative flex items-center justify-center text-center px-8 py-3 rounded-xl font-extrabold uppercase tracking-wide text-2xl"
+          style={{
+            background: bracket.color,
+            color:'#000',
+            minWidth:380
+          }}
+        >
+          {bracket.title}
+        </div>
+      </div>
+
+
+      <div
+        className="relative overflow-x-auto card"
+        style={{
+          height: se.height + 120
+        }}
+      >
+
+        <div
+          className="relative"
+          style={{
+            width: se.width + 150,
+            height: se.height + 100
+          }}
+        >
+
+
+          {/* LINEE */}
+          <svg
+            width={se.width + 150}
+            height={se.height}
+            className="absolute top-4 left-4"
+            style={{overflow:'visible'}}
+          >
+
+
+          {/* P → R */}
+          {se.preNodes?.map((p,i)=>{
+
+            const target = se.nodes[Math.floor(i/2)]
+
+            if(!target) return null
+
+            const y =
+              i*(CARD_H+ROW_GAP)+CARD_H/2
+
+            return (
+              <path
+                key={`pse-${i}`}
+                d={`M ${CARD_W} ${y} H ${target.left}`}
+                stroke={bracket.color}
+                strokeWidth={3}
+                fill="none"
+              />
+            )
+
+          })}
+
+
+
+          {/* R → Z → Y → finale */}
+          {se.nodes.map((n,idx)=>{
+
+            if(n.round===1) return null
+
+            const A = se.nodes[n.fromA!]
+            const B = se.nodes[n.fromB!]
+
+            if(!A || !B) return null
+
+
+            const ca=centerOf(A)
+            const cb=centerOf(B)
+            const c=centerOf(n)
+
+
+            const joinX=n.left-40
+
+
+            return(
+              <g
+                key={`pse-line-${idx}`}
+                stroke={bracket.color}
+                strokeWidth={3}
+                fill="none"
+              >
+
+                <path
+                  d={`M ${A.left+CARD_W} ${ca.cy} H ${joinX}`}
+                />
+
+                <path
+                  d={`M ${B.left+CARD_W} ${cb.cy} H ${joinX}`}
+                />
+
+                <path
+                  d={`M ${joinX} ${ca.cy} V ${cb.cy}`}
+                />
+
+                <path
+                  d={`M ${joinX} ${c.cy} H ${n.left}`}
+                />
+
+              </g>
+            )
+
+          })}
+
+
+          </svg>
+
+
+
+          {/* BOX R/Z/Y/X/W */}
+          <div
+            className="absolute top-4 left-4"
+            style={{
+              width:se.width,
+              height:se.height
+            }}
+          >
+
+          {se.nodes.map(n=>(
+
+            <div
+              key={n.id}
+              className="absolute card p-3 shadow-lg"
+              style={{
+                width:CARD_W,
+                height:CARD_H,
+                left:n.left,
+                top:n.top
+              }}
+            >
+
+              <div className="text-[11px] uppercase opacity-70 mb-2">
+                {n.code} — {bracket.title}
+              </div>
+
+
+              {n.round===1 ? (
+                <>
+                <div>
+                  {bracket.r1?.[n.mIndex]?.A || '-'}
+                </div>
+                <div className="my-1 text-neutral-400">
+                  vs
+                </div>
+                <div>
+                  {bracket.r1?.[n.mIndex]?.B || '-'}
+                </div>
+                </>
+              )
+              :
+              (
+                <>
+                <div>
+                  Vincente {se.nodes[n.fromA!]?.code}
+                </div>
+                <div className="my-1 text-neutral-400">
+                  vs
+                </div>
+                <div>
+                  Vincente {se.nodes[n.fromB!]?.code}
+                </div>
+                </>
+              )}
+
+            </div>
+
+          ))}
+
+          </div>
+
+
+        </div>
+
+      </div>
+
+    </div>
+  )
+}
  /* ===================== ITA (placeholder) ===================== */
 if (bracket.type === 'ITA') {
   return (
