@@ -1481,7 +1481,6 @@ const av = Array.from({ length: Math.max(0, avCount) }, (_, i) => `${i + 1}`)
 
 
 {/* QUI INSERISCI P → R */}
-{/* TEST ASSE X */}
 {active.type === 'PSE' && Array.from({ length: 5 }).map((_, i) => {
 
  const y = i*(CARD_H+ROW_GAP)+CARD_H/2
