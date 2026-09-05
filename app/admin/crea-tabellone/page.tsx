@@ -1529,13 +1529,18 @@ const ENTER = Math.round(50 * (CARD_W / 224))
 
 const extraPSE = active.type === 'PSE' ? 60 : 0
 
-const midAX = A.left + CARD_W + SHORT + extraPSE
-const midBX = B.left + CARD_W + SHORT + extraPSE
+const startOffset = active.type === 'PSE' ? 80 : 0
+
+const startAX = A.left + CARD_W + startOffset
+const startBX = B.left + CARD_W + startOffset
+
+const midAX = startAX + SHORT
+const midBX = startBX + SHORT
 const dstX = n.left - ENTER
   return (
     <g key={`pse-rz-${idx}`} stroke={active.color} strokeWidth={3} fill="none">
-      <path d={`M ${A.left+CARD_W} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
-      <path d={`M ${B.left+CARD_W} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
+     <path d={`M ${startAX} ${ca.cy} H ${midAX} H ${dstX} V ${c.cy}`} />
+<path d={`M ${startBX} ${cb.cy} H ${midBX} H ${dstX} V ${c.cy}`} />
       <path d={`M ${dstX} ${c.cy} H ${n.left}`} />
     </g>
   )
