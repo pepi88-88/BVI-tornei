@@ -842,7 +842,7 @@ if (bracket.type === 'PSE' && pseLayout) {
   return (
     <path
       key={`pse-${i}`}
-d={`M ${CARD_W} ${y} H ${target.left -100}`}
+d={`M ${CARD_W} ${y} H ${target.left -90}`}
       stroke={bracket.color}
       strokeWidth={3}
       fill="none"
