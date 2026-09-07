@@ -814,7 +814,7 @@ if (bracket.type === 'PSE' && pseLayout) {
         <div
           className="relative"
           style={{
-            width: se.width + 150,
+          width: se.width + 300,
             height: se.height + 100
           }}
         >
@@ -822,7 +822,7 @@ if (bracket.type === 'PSE' && pseLayout) {
 
           {/* LINEE */}
           <svg
-            width={se.width + 150}
+           width={se.width}
             height={se.height}
             className="absolute top-4 left-4"
             style={{overflow:'visible'}}
@@ -842,7 +842,7 @@ if (bracket.type === 'PSE' && pseLayout) {
             return (
               <path
                 key={`pse-${i}`}
-                d={`M ${CARD_W} ${y} H ${target.left}`}
+             d={`M ${80 + CARD_W} ${y} H ${target.left}`}
                 stroke={bracket.color}
                 strokeWidth={3}
                 fill="none"
@@ -914,7 +914,7 @@ if (bracket.type === 'PSE' && pseLayout) {
     style={{
       width:CARD_W,
       height:CARD_H,
-      left:0,
+      left:80,
       top:i*(CARD_H+ROW_GAP)
     }}
   >
@@ -939,13 +939,13 @@ if (bracket.type === 'PSE' && pseLayout) {
 
 ))}
           {/* BOX R/Z/Y/X/W */}
-          <div
-            className="absolute top-4 left-4"
-            style={{
-              width:se.width,
-              height:se.height
-            }}
-          >
+         <div
+  className="absolute top-4 left-4"
+  style={{
+    width:se.width,
+    height:se.height,
+  }}
+>
 
           {se.nodes.map(n=>(
 
