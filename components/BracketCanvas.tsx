@@ -151,7 +151,7 @@ function buildPSELayout(title:string, nTeams:number) {
 
   const offset = 80
 
-  const se = buildSELayout(title, nTeams)
+ const se = buildSELayout(title, nTeams, offset, 0)
 
   const size = nextPow2(nTeams)
   const preMatches = size / 2
@@ -163,8 +163,8 @@ function buildPSELayout(title:string, nTeams:number) {
       id:`${title}-P${i+1}`,
       round:0,
       mIndex:i,
-      left:0,
-      top:i*(CARD_H+ROW_GAP),
+     left:0,
+top:i*(CARD_H+ROW_GAP),
       code:`P${i+1}`
     })
   }
