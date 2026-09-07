@@ -723,6 +723,12 @@ function normalizeBracket(b: any): BracketType {
     A: b?.r1?.[i]?.A ?? '-',
     B: b?.r1?.[i]?.B ?? '-',
   }))
+   const pre = Array.isArray(b?.pre)
+ ? b.pre.map((m:any)=>({
+     A:m?.A ?? '-',
+     B:m?.B ?? '-'
+   }))
+ : []
   const slots = Array.from({ length: nextPow2(n) }, (_, i) => b?.slots?.[i] ?? '')
   return {
     id: String(b?.id || Math.random().toString(36).slice(2, 10)),
@@ -1587,7 +1593,9 @@ const activeForDisplay = useMemo(() => {
   if (!active) return null
 
   // solo SE/DE hanno il problema (ITA usa già ItaEditor con resolve)
-  if (String(active.type).toUpperCase() === 'SE' || String(active.type).toUpperCase() === 'DE') {
+ if (
+ ['SE','DE','PSE'].includes(String(active.type).toUpperCase())
+) {
     const mapSlot = (s: string) => resolveToken(String(s || '').trim())
     return {
       ...active,
