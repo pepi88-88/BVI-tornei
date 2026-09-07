@@ -953,15 +953,15 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
   type="button"
   onClick={() =>
     interactive &&
-    confirmAndSet(
-  p.code,
+confirmAndSet(
+  `P${i+1}`,
       'A',
-     resolveSlot(bracket.r1?.[p.mIndex]?.A || '-')
+     resolveSlot(bracket.r1?.[i]?.A || '-')
     )
   }
   className="w-full text-left truncate hover:bg-neutral-700/40 rounded px-1"
 >
-  {resolveSlot(bracket.r1?.[p.mIndex]?.A || '-')}
+  {resolveSlot(bracket.r1?.[i]?.A || '-')}
 </button>
 
 <div className="my-1 text-neutral-400">
@@ -975,12 +975,12 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
     confirmAndSet(
       `P${i+1}`,
       'B',
-      resolveSlot(bracket.r1?.[p.mIndex]?.B || '-')
+      resolveSlot(bracket.r1?.[i]?.B || '-')
     )
   }
   className="w-full text-left truncate hover:bg-neutral-700/40 rounded px-1"
 >
-  {resolveSlot(bracket.r1?.[p.mIndex]?.B || '-')}
+  {resolveSlot(bracket.r1?.[i]?.B || '-')}
 </button>
   </div>
 
