@@ -935,8 +935,9 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
 {/* BOX P */}
 {se.preNodes?.map((p,i)=>{
 
-return (
+const m = bracket.r1?.[i] ?? {A:'-',B:'-'}
 
+return (
   <div
     key={`pre-${i}`}
     className="absolute card p-3 shadow-lg"
