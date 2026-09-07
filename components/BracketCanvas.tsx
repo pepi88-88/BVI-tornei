@@ -786,7 +786,7 @@ if (bracket.type === 'PSE' && pseLayout) {
 
   const se = pseLayout
   const W = localWinners
-console.log("BRACKET COMPLETO PSE", bracket)
+console.log("KEYS BRACKET", Object.keys(bracket))
 const winnerOfNode = (n: Node): string => {
   if (n.round === 1) {
     const m = bracket.r1?.[n.mIndex] ?? {A:'-',B:'-'}
