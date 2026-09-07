@@ -932,7 +932,11 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
 
 
 {/* BOX P */}
-{se.preNodes?.map((p,i)=>(
+{se.preNodes?.map((p,i)=>{
+
+  const m = bracket.r1?.[i] ?? {A:'-',B:'-'}
+
+  return (
 
   <div
     key={`pre-${i}`}
@@ -949,24 +953,27 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
       P{i+1} — {bracket.title}
     </div>
 
+
   <button
   type="button"
   onClick={() =>
     interactive &&
-confirmAndSet(
-  `P${i+1}`,
+    confirmAndSet(
+      `P${i+1}`,
       'A',
-     resolveSlot(bracket.r1?.[i]?.A || '-')
+      resolveSlot(m.A)
     )
   }
   className="w-full text-left truncate hover:bg-neutral-700/40 rounded px-1"
 >
-  {resolveSlot(bracket.r1?.[i]?.A || '-')}
+  {resolveSlot(m.A)}
 </button>
 
+
 <div className="my-1 text-neutral-400">
-  vs
+vs
 </div>
+
 
 <button
   type="button"
@@ -975,16 +982,19 @@ confirmAndSet(
     confirmAndSet(
       `P${i+1}`,
       'B',
-      resolveSlot(bracket.r1?.[i]?.B || '-')
+      resolveSlot(m.B)
     )
   }
   className="w-full text-left truncate hover:bg-neutral-700/40 rounded px-1"
 >
-  {resolveSlot(bracket.r1?.[i]?.B || '-')}
+  {resolveSlot(m.B)}
 </button>
+
+
   </div>
 
-))}
+  )
+})}
          {/* BOX R/Z/Y/X/W */}
 <div
   className="absolute top-4 left-4"
