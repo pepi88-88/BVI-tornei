@@ -20,6 +20,9 @@ export type Bracket = {
   nTeams: number
   source: 'gironi'|'avulsa'|'eliminati'|'gironi+eliminati'
   fromTableId?: string
+
+  pre?: { A: string; B: string }[]
+
   r1: { A: string; B: string }[]
   slots: string[]
 }
@@ -788,18 +791,23 @@ if (bracket.type === 'PSE' && pseLayout) {
   const W = localWinners
 console.log("KEYS BRACKET", Object.keys(bracket))
 const winnerOfNode = (n: Node): string => {
-  if (n.round === 1) {
-    const m = bracket.r1?.[n.mIndex] ?? {A:'-',B:'-'}
-    const a = resolveSlot(m.A)
-    const b = resolveSlot(m.B)
+if (n.round === 1) {
 
-    const side = W[n.code]
+  const m =
+    bracket.type === 'PSE'
+      ? bracket.pre?.[n.mIndex] ?? {A:'-',B:'-'}
+      : bracket.r1?.[n.mIndex] ?? {A:'-',B:'-'}
 
-    if(side==='A') return a
-    if(side==='B') return b
+  const a = resolveSlot(m.A)
+  const b = resolveSlot(m.B)
 
-    return ''
-  }
+  const side = W[n.code]
+
+  if(side==='A') return a
+  if(side==='B') return b
+
+  return ''
+}
 
   const pa = se.nodes[n.fromA!]
   const pb = se.nodes[n.fromB!]
