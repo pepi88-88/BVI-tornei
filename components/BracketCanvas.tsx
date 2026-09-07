@@ -149,7 +149,7 @@ function buildSELayout(title:string, nTeams:number) {
 }
 function buildPSELayout(title:string, nTeams:number) {
 
-  const P_OFFSET = 40
+  const P_OFFSET = 80
 
   const se = buildSELayout(title, nTeams)
 
@@ -171,7 +171,7 @@ function buildPSELayout(title:string, nTeams:number) {
 
   const nodes = se.nodes.map(n => ({
     ...n,
-    left: n.left + P_OFFSET + CARD_W + COL_GAP
+    left: n.left + P_OFFSET + CARD_W + COL_GAP - 40
   }))
 
   return {
