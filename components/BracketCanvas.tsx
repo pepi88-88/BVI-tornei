@@ -149,7 +149,7 @@ function buildSELayout(title:string, nTeams:number) {
 }
 function buildPSELayout(title:string, nTeams:number) {
 
-  const offset = 80
+  const P_OFFSET = 40
 
   const se = buildSELayout(title, nTeams)
 
@@ -163,16 +163,23 @@ function buildPSELayout(title:string, nTeams:number) {
       id:`${title}-P${i+1}`,
       round:0,
       mIndex:i,
-      left: -(CARD_W + COL_GAP),
+      left:P_OFFSET,
       top:i*(CARD_H+ROW_GAP),
       code:`P${i+1}`
     })
   }
 
+  const nodes = se.nodes.map(n => ({
+    ...n,
+    left: n.left + P_OFFSET + CARD_W + COL_GAP
+  }))
+
   return {
     ...se,
+    nodes,
     preNodes,
-    type:'PSE'
+    type:'PSE',
+    width: se.width + P_OFFSET + CARD_W + COL_GAP
   }
 }
 /* ===================== Helpers linee (DE) ===================== */
