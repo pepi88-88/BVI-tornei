@@ -786,7 +786,33 @@ if (bracket.type === 'PSE' && pseLayout) {
 
   const se = pseLayout
   const W = localWinners
+const winnerOfNode = (n: Node): string => {
+  if (n.round === 1) {
+    const m = bracket.r1?.[n.mIndex] ?? {A:'-',B:'-'}
+    const a = resolveSlot(m.A)
+    const b = resolveSlot(m.B)
 
+    const side = W[n.code]
+
+    if(side==='A') return a
+    if(side==='B') return b
+
+    return ''
+  }
+
+  const pa = se.nodes[n.fromA!]
+  const pb = se.nodes[n.fromB!]
+
+  const wa = winnerOfNode(pa)
+  const wb = winnerOfNode(pb)
+
+  const side = W[n.code]
+
+  if(side==='A') return wa
+  if(side==='B') return wb
+
+  return ''
+}
   return (
     <div className="bracket-scope relative">
 
@@ -923,18 +949,39 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
       P{i+1} — {bracket.title}
     </div>
 
-    <div>
-    {'-'}
-    </div>
+  <button
+  type="button"
+  onClick={() =>
+    interactive &&
+    confirmAndSet(
+      `P${i+1}`,
+      'A',
+      resolveSlot(bracket.r1?.[i]?.A || '-')
+    )
+  }
+  className="w-full text-left truncate hover:bg-neutral-700/40 rounded px-1"
+>
+  {resolveSlot(bracket.r1?.[i]?.A || '-')}
+</button>
 
-    <div className="my-1 text-neutral-400">
-      vs
-    </div>
+<div className="my-1 text-neutral-400">
+  vs
+</div>
 
-    <div>
-      {'-'}
-    </div>
-
+<button
+  type="button"
+  onClick={() =>
+    interactive &&
+    confirmAndSet(
+      `P${i+1}`,
+      'B',
+      resolveSlot(bracket.r1?.[i]?.B || '-')
+    )
+  }
+  className="w-full text-left truncate hover:bg-neutral-700/40 rounded px-1"
+>
+  {resolveSlot(bracket.r1?.[i]?.B || '-')}
+</button>
   </div>
 
 ))}
@@ -983,14 +1030,20 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
               (
                 <>
                 <div>
-                  Vincente {se.nodes[n.fromA!]?.code}
-                </div>
+{
+ winnerOfNode(se.nodes[n.fromA!]) ||
+ `Vincente ${se.nodes[n.fromA!]?.code}`
+}
+</div>
                 <div className="my-1 text-neutral-400">
                   vs
                 </div>
-                <div>
-                  Vincente {se.nodes[n.fromB!]?.code}
-                </div>
+               <div>
+{
+ winnerOfNode(se.nodes[n.fromB!]) ||
+ `Vincente ${se.nodes[n.fromB!]?.code}`
+}
+</div>
                 </>
               )}
 
