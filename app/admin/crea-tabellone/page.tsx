@@ -820,6 +820,7 @@ const [enableThirdPlace, setEnableThirdPlace] = useState(true)
       nTeams: n,
       source: 'gironi',
       r1: Array.from({ length: nextPow2(n)/2 }, () => ({ A: '-', B: '-' })),
+        pre: [],
       slots: Array.from({ length: nextPow2(n) }, () => ''),
     }
   }
