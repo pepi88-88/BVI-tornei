@@ -943,7 +943,7 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
 {/* BOX P */}
 {se.preNodes?.map((p,i)=>{
 
-const m = bracket.r1?.[i] ?? {A:'-',B:'-'}
+const m = bracket.pre?.[i] ?? {A:'-',B:'-'}
 return (
   <div
     key={`pre-${i}`}
