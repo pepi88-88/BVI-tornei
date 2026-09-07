@@ -870,7 +870,7 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
 
 
             const joinX=n.left-40
-  const SHIFT_X = -100
+  const SHIFT_X = -95
 
 
             return(
