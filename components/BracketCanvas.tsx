@@ -842,7 +842,7 @@ if (bracket.type === 'PSE' && pseLayout) {
   return (
     <path
       key={`pse-${i}`}
-d={`M ${CARD_W} ${y} H ${target.left -80}`}
+d={`M ${CARD_W} ${y} H ${target.left -100}`}
       stroke={bracket.color}
       strokeWidth={3}
       fill="none"
@@ -869,7 +869,8 @@ d={`M ${CARD_W} ${y} H ${target.left -80}`}
             const c=centerOf(n)
 
 
-            const joinX=n.left-120
+            const joinX=n.left-40
+  const SHIFT_X = -80
 
 
             return(
@@ -880,22 +881,21 @@ d={`M ${CARD_W} ${y} H ${target.left -80}`}
                 fill="none"
               >
 
-                <path
-                  d={`M ${A.left+CARD_W} ${ca.cy} H ${joinX}`}
-                />
+               <path
+  d={`M ${A.left+CARD_W+SHIFT_X} ${ca.cy} H ${joinX+SHIFT_X}`}
+/>
 
-                <path
-                  d={`M ${B.left+CARD_W} ${cb.cy} H ${joinX}`}
-                />
+<path
+  d={`M ${B.left+CARD_W+SHIFT_X} ${cb.cy} H ${joinX+SHIFT_X}`}
+/>
 
-                <path
-                  d={`M ${joinX} ${ca.cy} V ${cb.cy}`}
-                />
+<path
+  d={`M ${joinX+SHIFT_X} ${ca.cy} V ${cb.cy}`}
+/>
 
-                <path
-                  d={`M ${joinX} ${c.cy} H ${n.left}`}
-                />
-
+<path
+  d={`M ${joinX+SHIFT_X} ${c.cy} H ${n.left+SHIFT_X}`}
+ />
               </g>
             )
 
