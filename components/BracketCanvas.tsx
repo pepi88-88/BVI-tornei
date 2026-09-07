@@ -944,6 +944,7 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
 {se.preNodes?.map((p,i)=>{
 
 const m = bracket.pre?.[i] ?? {A:'-',B:'-'}
+  console.log("PSE PRE DATI", bracket.pre)
 return (
   <div
     key={`pre-${i}`}
