@@ -842,7 +842,7 @@ if (bracket.type === 'PSE' && pseLayout) {
   return (
     <path
       key={`pse-${i}`}
-      d={`M ${40 + CARD_W} ${y} H ${target.left}`}
+      d={`M ${16 + CARD_W} ${y} H ${target.left - 80}`}
       stroke={bracket.color}
       strokeWidth={3}
       fill="none"
@@ -914,7 +914,7 @@ if (bracket.type === 'PSE' && pseLayout) {
     style={{
       width:CARD_W,
       height:CARD_H,
-      left:40,
+      left:16,
       top:i*(CARD_H+ROW_GAP) +16
     }}
   >
@@ -938,12 +938,13 @@ if (bracket.type === 'PSE' && pseLayout) {
   </div>
 
 ))}
-          {/* BOX R/Z/Y/X/W */}
-         <div
+         {/* BOX R/Z/Y/X/W */}
+<div
   className="absolute top-4 left-4"
   style={{
     width:se.width,
     height:se.height,
+    left: -80
   }}
 >
 
