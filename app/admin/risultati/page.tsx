@@ -1600,9 +1600,17 @@ const activeForDisplay = useMemo(() => {
     return {
       ...active,
       // r1: risolvo A e B
-      r1: (active.r1 || []).map(m => ({ A: mapSlot(m.A), B: mapSlot(m.B) })),
-      // slots lineari (per gli schemi che li mostrano)
-      slots: (active.slots || []).map(mapSlot),
+    r1: (active.r1 || []).map(m => ({
+  A: mapSlot(m.A),
+  B: mapSlot(m.B)
+})),
+
+pre: (active.pre || []).map(m => ({
+  A: mapSlot(m.A),
+  B: mapSlot(m.B)
+})),
+
+slots: (active.slots || []).map(mapSlot)
     } as BracketType
   }
   return active
