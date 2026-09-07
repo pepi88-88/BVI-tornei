@@ -842,7 +842,7 @@ if (bracket.type === 'PSE' && pseLayout) {
   return (
     <path
       key={`pse-${i}`}
-d={`M ${CARD_W} ${y} H ${target.left -90}`}
+d={`M ${CARD_W} ${y} H ${target.left -95}`}
       stroke={bracket.color}
       strokeWidth={3}
       fill="none"
@@ -870,7 +870,7 @@ d={`M ${CARD_W} ${y} H ${target.left -90}`}
 
 
             const joinX=n.left-40
-  const SHIFT_X = -80
+  const SHIFT_X = -100
 
 
             return(
