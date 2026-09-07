@@ -786,8 +786,7 @@ if (bracket.type === 'PSE' && pseLayout) {
 
   const se = pseLayout
   const W = localWinners
-
-  console.log("PSE PRE", bracket.pre)
+console.log("BRACKET COMPLETO PSE", bracket)
 const winnerOfNode = (n: Node): string => {
   if (n.round === 1) {
     const m = bracket.r1?.[n.mIndex] ?? {A:'-',B:'-'}
@@ -935,8 +934,6 @@ d={`M ${CARD_W} ${y} H ${target.left -95}`}
 
 {/* BOX P */}
 {se.preNodes?.map((p,i)=>{
-
-const m = bracket.pre?.[i] ?? {A:'-',B:'-'}
 
 return (
 
