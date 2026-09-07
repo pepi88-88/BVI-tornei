@@ -294,12 +294,13 @@ function buildSELayout(title: string, nTeams: number, leftOffset = 0, topOffset 
 function buildPreLayout(nTeams:number){
 
   const size = nextPow2(nTeams)
+  const matches = size / 2
 
   return Array.from(
-    {length:size/2},
-    () => ({
-      A:'',
-      B:''
+    {length: matches},
+    (_,i)=>({
+      A:`A${i*2+1}`,
+      B:`A${i*2+2}`
     })
   )
 }
