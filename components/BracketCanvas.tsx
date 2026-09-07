@@ -829,27 +829,27 @@ if (bracket.type === 'PSE' && pseLayout) {
           >
 
 
-          {/* P → R */}
-          {se.preNodes?.map((p,i)=>{
+         {/* P → R */}
+{se.preNodes?.map((p,i)=>{
 
-            const target = se.nodes[Math.floor(i/2)]
+  const target = se.nodes[Math.floor(i/2)]
 
-            if(!target) return null
+  if(!target) return null
 
-            const y =
-              i*(CARD_H+ROW_GAP)+CARD_H/2
+  const y =
+    i*(CARD_H+ROW_GAP)+CARD_H/2
 
-            return (
-              <path
-                key={`pse-${i}`}
-             d={`M ${80 + CARD_W} ${y} H ${target.left}`}
-                stroke={bracket.color}
-                strokeWidth={3}
-                fill="none"
-              />
-            )
+  return (
+    <path
+      key={`pse-${i}`}
+      d={`M ${40 + CARD_W} ${y} H ${target.left}`}
+      stroke={bracket.color}
+      strokeWidth={3}
+      fill="none"
+    />
+  )
 
-          })}
+})}
 
 
 
@@ -914,8 +914,8 @@ if (bracket.type === 'PSE' && pseLayout) {
     style={{
       width:CARD_W,
       height:CARD_H,
-      left:80,
-      top:i*(CARD_H+ROW_GAP)
+      left:40,
+      top:i*(CARD_H+ROW_GAP) +16
     }}
   >
 
